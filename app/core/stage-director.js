@@ -10,6 +10,9 @@
     var crosshair = null;
     var currentVedanaKind = 'sukha';
     var currentVedanaPathId = 'ren';
+    var warmPath = { effectId: null, handle: null, promise: null };
+
+    var PATH_FADE_MS = 700;
 
     var dom = {};
 
@@ -72,14 +75,157 @@
         return stage.threeProfile;
     }
 
+    function assignedPathEffectId() {
+        return resolveEffectId({ layers: { effect: 'assigned-path' } });
+    }
+
+    function restoreHouseThree() {
+        if (global.ThreeRegistry && global.ThreeRegistry.useR128) {
+            global.ThreeRegistry.useR128();
+        }
+    }
+
+    function preloadAssignedPathScripts() {
+        var effectId = assignedPathEffectId();
+        if (!effectId || !global.EffectRegistry || !global.EffectRegistry.ensureEffectScripts) {
+            return Promise.resolve();
+        }
+        return global.EffectRegistry.ensureEffectScripts(effectId).then(function () {
+            restoreHouseThree();
+        }).catch(function (err) {
+            console.warn('[StageDirector] path script preload failed', err);
+            restoreHouseThree();
+        });
+    }
+
+    function clearWarmPath(dispose) {
+        if (dispose && warmPath.handle && warmPath.effectId) {
+            global.EffectRegistry.disposeHandle(warmPath.handle, warmPath.effectId);
+        }
+        warmPath = { effectId: null, handle: null, promise: null };
+    }
+
+    function warmAssignedPathMount() {
+        var effectId = assignedPathEffectId();
+        if (!effectId || !dom.effectLayer) return Promise.resolve();
+        if (warmPath.promise && warmPath.effectId === effectId) return warmPath.promise;
+
+        if (warmPath.handle && warmPath.effectId) {
+            global.EffectRegistry.disposeHandle(warmPath.handle, warmPath.effectId);
+        }
+        warmPath = { effectId: effectId, handle: null, promise: null };
+
+        if (global.HouseModelStage && global.HouseModelStage.suspend) {
+            global.HouseModelStage.suspend({ keepVisible: true });
+        }
+
+        currentEffectId = effectId;
+        dom.effectLayer.hidden = false;
+        dom.effectLayer.classList.add('is-path-pending');
+        dom.effectLayer.innerHTML = '';
+        var wrap = document.createElement('div');
+        wrap.className = 'effect-mount';
+        wrap.style.cssText = 'position:absolute;inset:0;background:transparent;';
+        dom.effectLayer.appendChild(wrap);
+
+        var opts = { container: wrap };
+        if (crosshair) {
+            opts.onMouseMove = function (x, y) { crosshair.updatePosition(x, y); };
+        }
+
+        warmPath.promise = global.EffectRegistry.mount(effectId, opts).then(function (h) {
+            warmPath.handle = h;
+            effectHandle = h;
+            return h;
+        }).catch(function (err) {
+            console.error('[StageDirector] warm path mount failed', effectId, err);
+            wrap.innerHTML = '<div class="effect-error">Effect load failed: ' + effectId + '</div>';
+            warmPath.promise = null;
+        });
+        return warmPath.promise;
+    }
+
+    function fadeOutgoingToPath() {
+        if (dom.effectLayer) {
+            dom.effectLayer.hidden = false;
+            dom.effectLayer.classList.remove('is-path-pending');
+        }
+        if (dom.houseLayer && !dom.houseLayer.hidden) {
+            dom.houseLayer.classList.add('is-fading-out');
+        }
+        if (dom.karmaWrap && !dom.karmaWrap.hidden) {
+            dom.karmaWrap.classList.add('is-fading-out');
+        }
+        if (global.BgVideoController) global.BgVideoController.setVisible(false);
+
+        return new Promise(function (resolve) {
+            setTimeout(function () {
+                if (dom.houseLayer) {
+                    dom.houseLayer.hidden = true;
+                    dom.houseLayer.classList.remove('is-fading-out');
+                    dom.houseLayer.style.opacity = '';
+                }
+                if (dom.karmaWrap) {
+                    dom.karmaWrap.classList.remove('is-fading-out');
+                    dom.karmaWrap.style.opacity = '';
+                }
+                if (global.KarmaProgress && global.KarmaProgress.hide) {
+                    global.KarmaProgress.hide();
+                }
+                resolve();
+            }, PATH_FADE_MS);
+        });
+    }
+
+    function enterAssignedPathStage(stage, index) {
+        var effectId = assignedPathEffectId();
+        var pathId = peekPathId();
+        var pathCfg = global.PATHS_CONFIG && global.PATHS_CONFIG[pathId];
+        console.info('[StageDirector] six-paths', pathId, pathCfg && pathCfg.name, 'effect=' + effectId);
+        var alreadyWarm = warmPath.promise && warmPath.effectId === effectId;
+        var chain = alreadyWarm
+            ? warmPath.promise
+            : Promise.resolve().then(function () {
+                if (global.HouseModelStage && global.HouseModelStage.ensureLoaded) {
+                    restoreHouseThree();
+                    return global.HouseModelStage.ensureLoaded().then(function () {
+                        if (global.HouseModelStage.suspend) {
+                            global.HouseModelStage.suspend({ keepVisible: true });
+                        }
+                    }).catch(function (err) {
+                        console.warn('[StageDirector] house preload before six-paths failed', err);
+                    });
+                }
+            }).then(function () {
+                return warmAssignedPathMount();
+            });
+
+        return chain.then(function () {
+            return fadeOutgoingToPath();
+        }).then(function () {
+            global.SubtitleController.play(resolveSubtitles(stage));
+            return runStageBody(stage);
+        }).then(function () {
+            global.AppEventBus.emit('stage:complete', { stage: stage, index: index });
+            exitStage(stage, getStage(index + 1));
+            return true;
+        });
+    }
+
     function setLayerVisibility(stage) {
         var L = stage.layers || {};
-        global.BgVideoController.setVisible(L.bgVideo !== false);
+        var holdOutgoing = L.effect === 'assigned-path';
 
-        if (dom.karmaWrap) dom.karmaWrap.hidden = !L.karmaBar;
-        if (dom.karmaText) dom.karmaText.hidden = !L.karmaBar;
-        if (dom.houseLayer) dom.houseLayer.hidden = !L.houseModel;
-        if (dom.effectLayer) dom.effectLayer.hidden = !L.effect;
+        if (!holdOutgoing) {
+            global.BgVideoController.setVisible(L.bgVideo !== false);
+            if (dom.karmaWrap) dom.karmaWrap.hidden = !L.karmaBar;
+            if (dom.karmaText) dom.karmaText.hidden = !L.karmaBar;
+            if (dom.houseLayer) dom.houseLayer.hidden = !L.houseModel;
+        }
+        if (dom.effectLayer) {
+            dom.effectLayer.hidden = !L.effect;
+            if (holdOutgoing) dom.effectLayer.classList.add('is-path-pending');
+        }
 
         if (L.blockingUi) {
             global.BlockingUI.setMode(L.blockingUi);
@@ -194,12 +340,14 @@
 
     function runStageBody(stage) {
         if (stage.finalizeKarma) {
+            var scriptsP = preloadAssignedPathScripts();
             return global.KarmaProgress.runFinalize(
                 stage.karmaDurationMs || 7000,
                 stage.karmaLabel || 'Karma calculation in progress...'
             ).then(function (result) {
                 karmaResult = result;
                 applyPathOverrideToKarma();
+                return scriptsP;
             });
         }
 
@@ -224,11 +372,11 @@
         global.SubtitleController.hide();
         exitSpecialStage(stage);
         global.BlockingUI.clear();
-        disposeCurrentEffect();
-        if (global.HouseModelStage && global.HouseModelStage.isActive() && (!nextStage || !nextStage.layers.houseModel)) {
-            if (nextStage && nextStage.layers && nextStage.layers.effect === 'assigned-path' && global.HouseModelStage.suspend) {
-                global.HouseModelStage.suspend();
-            } else {
+        var goingToPath = nextStage && nextStage.layers && nextStage.layers.effect === 'assigned-path';
+        if (!goingToPath) {
+            disposeCurrentEffect();
+            clearWarmPath(false);
+            if (global.HouseModelStage && global.HouseModelStage.isActive() && (!nextStage || !nextStage.layers.houseModel)) {
                 global.HouseModelStage.exitStage();
             }
         }
@@ -253,6 +401,10 @@
 
         setLayerVisibility(stage);
 
+        if (stage.layers && stage.layers.effect === 'assigned-path') {
+            return enterAssignedPathStage(stage, index);
+        }
+
         var special = runSpecialStage(stage);
         if (!special) {
             /* 有特效的阶段：等 mount 完成后再播字幕，atMs 相对「效果就绪」 */
@@ -266,29 +418,10 @@
 
         var chain = special || Promise.resolve();
         return chain.then(function () {
-            if (stage.layers && stage.layers.effect === 'assigned-path' && global.HouseModelStage && global.HouseModelStage.ensureLoaded) {
-                if (global.ThreeRegistry && global.ThreeRegistry.useR128) {
-                    global.ThreeRegistry.useR128();
-                }
-                return global.HouseModelStage.ensureLoaded().then(function () {
-                    if (global.HouseModelStage.suspend) global.HouseModelStage.suspend();
-                }).catch(function (err) {
-                    console.warn('[StageDirector] house preload before six-paths failed', err);
-                });
-            }
-        }).then(function () {
             return global.ThreeRegistry.ensureProfile(profile);
         }).then(function () {
             global.ThreeRegistry.useProfile(profile);
             return enterHouse(stage);
-        }).then(function () {
-            if (stage.layers && stage.layers.effect === 'assigned-path') {
-                return new Promise(function (resolve) {
-                    global.requestAnimationFrame(function () {
-                        global.requestAnimationFrame(resolve);
-                    });
-                });
-            }
         }).then(function () {
             return mountStageEffect(stage);
         }).then(function () {

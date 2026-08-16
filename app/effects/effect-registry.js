@@ -170,6 +170,7 @@
     global.EffectRegistry = {
         getDef: getDef,
         listEffectIds: listEffectIds,
+        ensureEffectScripts: ensureEffectScripts,
         mount: mount,
         disposeHandle: disposeHandle,
         EFFECT_DEFS: EFFECT_DEFS,

@@ -26,6 +26,11 @@
         idleTimer: null,
     };
 
+    function isHouseLookTarget(el) {
+        if (!el || !el.closest) return false;
+        return !!el.closest('#houseLayer');
+    }
+
     function setAction(code) {
         state.actionCode = code;
         scheduleIdleStop();
@@ -49,7 +54,8 @@
 
     function finalizePointerSession() {
         var ps = state.pointerSession;
-        if (ps && ps.armed) {
+        // 转房子是看模型，不算「乱拖」——否则滚轮/轨道操作会把六道锁死在畜生道
+        if (ps && ps.armed && !ps.lookOnly) {
             state.dragCount += 1;
             state.dragDistance += ps.sessionDistance;
             state.dragDuration += (Date.now() - ps.startMs) / 1000;
@@ -140,6 +146,7 @@
             startMs: Date.now(),
             sessionDistance: 0,
             armed: false,
+            lookOnly: isHouseLookTarget(e.target),
         };
         state.dragArmed = false;
     }
@@ -187,9 +194,12 @@
         if (state.lastX != null && state.lastY != null) {
             var dx = x - state.lastX;
             var dy = y - state.lastY;
-            state.moveDistance += Math.sqrt(dx * dx + dy * dy);
+            var looking = (ps && ps.lookOnly) || isHouseLookTarget(e.target);
+            if (!looking) {
+                state.moveDistance += Math.sqrt(dx * dx + dy * dy);
+            }
             if (!state.dragArmed && (dx * dx + dy * dy > 4)) {
-                setAction('MOVE');
+                setAction(looking ? 'LOOK' : 'MOVE');
             }
         }
         state.lastX = x;
@@ -215,6 +225,10 @@
 
     function onWheel(e) {
         if (!state.active) return;
+        if (isHouseLookTarget(e.target)) {
+            setAction('LOOK');
+            return;
+        }
         state.wheelDelta += normalizeWheelDelta(e);
         setAction('SCROLL');
     }

@@ -46,8 +46,11 @@
     var sweepMaxY = 2;
     var COL_HOUSE = 0x8B5CF6;
     var AI_FORM_S = 6.5;
+    var AI_CAM_S = 5.5;
     var AI_CONTRACT_S = 1.8;
-    var AI_SCREEN_RATIO = 0.26;
+    var AI_SCREEN_RATIO = 0.48;
+    var AI_SCREEN_LIFT_PX = 30;
+    var AI_RADIUS_MUL = 0.11;
     var AI_ATTRACTION = 0.045;
     var AI_DAMPING = 0.76;
     var AI_REPEL_STRENGTH = 28;
@@ -55,11 +58,21 @@
     var AI_ANGLE_STEP = 0.01;
     var aiSphereRadius = 0;
     var aiCamStart = 0;
+    var aiCamFromPX = 0;
+    var aiCamFromPY = 0;
+    var aiCamFromPZ = 0;
+    var aiCamFromTargetX = 0;
+    var aiCamFromTargetY = 0;
+    var aiCamFromTargetZ = 0;
+    var aiCamFromReady = false;
     var aiAngle = 0;
     var aiPosX = null;
     var aiPosY = null;
     var aiFromX = null;
     var aiFromY = null;
+    var aiFromLX = null;
+    var aiFromLY = null;
+    var aiFromLZ = null;
     var aiFromReady = false;
     var aiVelX = null;
     var aiVelY = null;
@@ -714,8 +727,18 @@
 
     function syncMouseRipple() {
         if (!pointsMaterial || !pointsMaterial.uniforms.uRipple) return;
-        if (!pointsAreVisible() || mode === 'ai' || mode === 'qu') {
+        if (!pointsAreVisible()) {
             pointsMaterial.uniforms.uRipple.value = 0;
+            return;
+        }
+        if (mode === 'qu') {
+            pointsMaterial.uniforms.uRipple.value = 0;
+            return;
+        }
+        if (mode === 'ai') {
+            var rippleFade = Math.max(0, 1 - modeElapsed / 1.6);
+            pointsMaterial.uniforms.uRipple.value = rippleFade;
+            if (rippleFade > 0.01) updateMouseWorld();
             return;
         }
         pointsMaterial.uniforms.uRipple.value = 1;
@@ -1348,14 +1371,15 @@
 
     function ensureAiState() {
         if (!originalPositions) return;
-        var radius = houseMaxDim * 0.24;
         var count = originalPositions.length / 3;
-        aiSphereRadius = radius;
         if (!aiPosX || aiPosX.length !== count) {
             aiPosX = new Float32Array(count);
             aiPosY = new Float32Array(count);
             aiFromX = new Float32Array(count);
             aiFromY = new Float32Array(count);
+            aiFromLX = new Float32Array(count);
+            aiFromLY = new Float32Array(count);
+            aiFromLZ = new Float32Array(count);
             aiVelX = new Float32Array(count);
             aiVelY = new Float32Array(count);
         }
@@ -1372,6 +1396,10 @@
         if (aiPosY) aiPosY.fill(0);
         if (aiFromX) aiFromX.fill(0);
         if (aiFromY) aiFromY.fill(0);
+        if (aiFromLX) aiFromLX.fill(0);
+        if (aiFromLY) aiFromLY.fill(0);
+        if (aiFromLZ) aiFromLZ.fill(0);
+        aiCamFromReady = false;
         if (aiVelX) aiVelX.fill(0);
         if (aiVelY) aiVelY.fill(0);
         aiAngle = 0;
@@ -1381,11 +1409,14 @@
     function captureAiFromCurrent() {
         ensureAiState();
         aiFromReady = false;
-        if (!points || !aiFromX || !aiScratch || !updateAiBasis()) return;
+        if (!points || !aiFromX || !aiFromLX || !aiScratch || !updateAiBasis()) return;
         var posArr = points.geometry.attributes.position.array;
         var idx = 0;
         var i;
         for (i = 0; i < posArr.length; i += 3) {
+            aiFromLX[idx] = posArr[i];
+            aiFromLY[idx] = posArr[i + 1];
+            aiFromLZ[idx] = posArr[i + 2];
             aiScratch.set(posArr[i], posArr[i + 1], posArr[i + 2]);
             points.localToWorld(aiScratch);
             aiScratch.sub(aiCenter);
@@ -1432,23 +1463,19 @@
             keepPointCloud();
         }
         ensureAiState();
-        captureAiFromCurrent();
         if (points && points.geometry && points.geometry.attributes.position) {
             points.geometry.attributes.position.dynamic = true;
         }
-        if (modelRoot) modelRoot.scale.set(1, 1, 1);
         resetVedanaLook();
         if (pointsMaterial) {
             pointsMaterial.uniforms.uPointAlpha.value = 1;
             pointsMaterial.uniforms.uPointSize.value = 0.012;
+            pointsMaterial.uniforms.uGlow.value = 1.28;
         }
-        if (controls && controls.spherical) {
-            aiCamStart = controls.spherical.radius;
-        } else {
-            aiCamStart = baseCameraDistance;
-        }
-        applyAiLift(0);
         lockAiControls();
+        refreshAiSphereForCurrentCamera();
+        captureAiFromCurrent();
+        if (clock) clock.getDelta();
     }
 
     function applyAiLift(amount) {
@@ -1490,7 +1517,7 @@
     }
 
     function aiLiftAmount() {
-        return (aiSphereRadius || houseMaxDim * 0.24) * 0.36 || houseMaxDim * AI_LIFT_MUL;
+        return (aiSphereRadius || houseMaxDim * AI_RADIUS_MUL) * 0.36 || houseMaxDim * AI_LIFT_MUL;
     }
 
     function beginQu() {
@@ -1500,65 +1527,70 @@
             applyToPoints(1);
             markPointsReady();
         } else {
-            hideMeshShowPoints();
+            keepPointCloud();
         }
         ensureAiState();
+        if (!(aiSphereRadius > 0)) refreshAiSphereForCurrentCamera();
         seedAiHomesIfEmpty();
         if (points && points.geometry && points.geometry.attributes.position) {
             points.geometry.attributes.position.dynamic = true;
         }
-        if (modelRoot) modelRoot.scale.set(1, 1, 1);
         resetVedanaLook();
         if (pointsMaterial) {
             pointsMaterial.uniforms.uPointAlpha.value = 1;
-            pointsMaterial.uniforms.uPointSize.value = 0.008;
+            pointsMaterial.uniforms.uPointSize.value = 0.012;
+            pointsMaterial.uniforms.uGlow.value = 1.35;
         }
-        aiCamStart = aiEndCameraDistance();
-        applyAiLift(aiLiftAmount());
         lockAiControls();
     }
 
     function lockAiControls() {
         if (!controls) return;
+        controls.enabled = false;
         controls.enableZoom = false;
+        controls.enableRotate = false;
+        controls.enablePan = false;
+        controls.enableDamping = false;
     }
 
     function unlockAiControls() {
         if (!controls) return;
+        controls.enabled = true;
         controls.enableZoom = true;
+        controls.enableRotate = true;
+        controls.enablePan = false;
+        controls.enableDamping = true;
         controls.minDistance = 0;
         controls.maxDistance = Infinity;
     }
 
-    function aiEndCameraDistance() {
-        var R = aiSphereRadius || houseMaxDim * 0.24;
+    function refreshAiSphereForCurrentCamera() {
+        if (!camera) return;
+        if (!aiCenter && typeof THREE !== 'undefined') aiCenter = new THREE.Vector3();
+        if (!aiCenter) return;
+        var tx = controls ? controls.target.x : 0;
+        var ty = controls ? controls.target.y : 0;
+        var tz = controls ? controls.target.z : 0;
+        var dist = camera.position.distanceTo(controls ? controls.target : aiCenter.set(tx, ty, tz));
+        if (!(dist > 1e-4)) dist = baseCameraDistance || houseMaxDim || 1;
         var h = (containerEl && containerEl.clientHeight) || global.innerHeight || 800;
         var w = (containerEl && containerEl.clientWidth) || global.innerWidth || 800;
-        var targetPx = Math.min(w, h) * AI_SCREEN_RATIO;
-        var fov = camera && camera.fov ? camera.fov : 60;
+        var fov = camera.fov || 60;
         var tanHalf = Math.tan(fov * Math.PI / 360);
-        var dist = (R * h * 0.5) / (Math.max(tanHalf, 1e-4) * Math.max(targetPx, 1));
-        return Math.max(dist, R * 2.4);
-    }
-
-    function applyAiCamera(focus) {
-        if (!controls || !controls.spherical) return;
-        var start = aiCamStart || baseCameraDistance;
-        var end = aiEndCameraDistance();
-        var radius = focus >= 0.999 ? end : lerp(start, end, focus);
-        controls.spherical.radius = radius;
-        if (focus >= 0.999) {
-            controls.minDistance = end;
-            controls.maxDistance = end;
-        }
-        controls.enableZoom = false;
+        var targetDiam = Math.min(w, h) * AI_SCREEN_RATIO;
+        aiSphereRadius = Math.max(targetDiam * dist * tanHalf / Math.max(h, 1), houseMaxDim * 0.02);
+        var lift = (AI_SCREEN_LIFT_PX / Math.max(h, 1)) * (2 * dist * tanHalf);
+        var ux = camera.up.x;
+        var uy = camera.up.y;
+        var uz = camera.up.z;
+        var ul = Math.sqrt(ux * ux + uy * uy + uz * uz) || 1;
+        aiCenter.set(tx + (ux / ul) * lift, ty + (uy / ul) * lift, tz + (uz / ul) * lift);
     }
 
     function updateAiBasis() {
         if (!camera || !points || !aiCenter) return false;
         points.updateMatrixWorld(true);
-        var liftY = modelRoot ? (modelRoot.position.y - modelRootBaseY) : 0;
-        aiCenter.set(0, liftY, 0);
+        if (!(aiSphereRadius > 0)) refreshAiSphereForCurrentCamera();
         aiScratch.copy(camera.position).sub(aiCenter);
         if (aiScratch.lengthSq() < 1e-8) return false;
         aiScratch.normalize();
@@ -1602,6 +1634,7 @@
         var r = aiSphereRadius;
         var rR = r * AI_REPEL_RATIO;
         var rR2 = rR * rR;
+        var minDistSq = (r * 0.02) * (r * 0.02);
         var strength = AI_REPEL_STRENGTH * (r / 250);
         var frameScale = Math.min(2.5, Math.max(0.5, delta / 0.016));
         var attract = AI_ATTRACTION * frameScale;
@@ -1623,22 +1656,27 @@
             var vx;
             var vy;
             if (!formed) {
-                var fromX;
-                var fromY;
-                if (aiFromReady) {
-                    fromX = aiFromX[idx];
-                    fromY = aiFromY[idx];
+                if (aiFromReady && aiFromLX) {
+                    aiScratch.set(aiFromLX[idx], aiFromLY[idx], aiFromLZ[idx]);
                 } else {
                     aiScratch.set(orig[i], orig[i + 1], orig[i + 2]);
-                    points.localToWorld(aiScratch);
-                    aiScratch.sub(aiCenter);
-                    fromX = aiScratch.dot(aiRight);
-                    fromY = aiScratch.dot(aiUp);
                 }
-                px = lerp(fromX, homeX, form);
-                py = lerp(fromY, homeY, form);
+                points.localToWorld(aiScratch);
+                var fx = aiScratch.x;
+                var fy = aiScratch.y;
+                var fz = aiScratch.z;
+                var hx = aiCenter.x + aiRight.x * homeX + aiUp.x * homeY;
+                var hy = aiCenter.y + aiRight.y * homeX + aiUp.y * homeY;
+                var hz = aiCenter.z + aiRight.z * homeX + aiUp.z * homeY;
+                aiScratch.set(lerp(fx, hx, form), lerp(fy, hy, form), lerp(fz, hz, form));
+                px = (aiScratch.x - aiCenter.x) * aiRight.x + (aiScratch.y - aiCenter.y) * aiRight.y + (aiScratch.z - aiCenter.z) * aiRight.z;
+                py = (aiScratch.x - aiCenter.x) * aiUp.x + (aiScratch.y - aiCenter.y) * aiUp.y + (aiScratch.z - aiCenter.z) * aiUp.z;
                 vx = 0;
                 vy = 0;
+                points.worldToLocal(aiScratch);
+                posArr[i] = aiScratch.x;
+                posArr[i + 1] = aiScratch.y;
+                posArr[i + 2] = aiScratch.z;
             } else {
                 px = aiPosX[idx];
                 py = aiPosY[idx];
@@ -1648,7 +1686,7 @@
                     var ddx = px - mx;
                     var ddy = py - my;
                     var distSq = ddx * ddx + ddy * ddy;
-                    if (distSq > 0.1 && distSq < rR2) {
+                    if (distSq > minDistSq && distSq < rR2) {
                         var dist = Math.sqrt(distSq);
                         var repel = strength * (1 - dist / rR) * frameScale;
                         vx += (ddx / dist) * repel;
@@ -1659,23 +1697,23 @@
                 vy *= damp;
                 px += vx;
                 py += vy;
+                aiScratch.copy(aiCenter).addScaledVector(aiRight, px).addScaledVector(aiUp, py);
+                points.worldToLocal(aiScratch);
+                posArr[i] = aiScratch.x;
+                posArr[i + 1] = aiScratch.y;
+                posArr[i + 2] = aiScratch.z;
             }
             aiPosX[idx] = px;
             aiPosY[idx] = py;
             aiVelX[idx] = vx;
             aiVelY[idx] = vy;
-            aiScratch.copy(aiCenter).addScaledVector(aiRight, px).addScaledVector(aiUp, py);
-            points.worldToLocal(aiScratch);
-            posArr[i] = aiScratch.x;
-            posArr[i + 1] = aiScratch.y;
-            posArr[i + 2] = aiScratch.z;
             idx += 1;
         }
         points.geometry.attributes.position.needsUpdate = true;
         setPointColorHex(COL_HOUSE);
         pointsMaterial.uniforms.uPointAlpha.value = 1;
-        pointsMaterial.uniforms.uGlow.value = 1;
-        pointsMaterial.uniforms.uPointSize.value = lerp(0.012, 0.008, form);
+        pointsMaterial.uniforms.uGlow.value = lerp(1.28, 1.35, form);
+        pointsMaterial.uniforms.uPointSize.value = 0.012;
         if (targetMesh) {
             targetMesh.visible = false;
             syncMeshMaterialOpacity(0);
@@ -1695,13 +1733,10 @@
             keepPointCloud();
             pointsReady = true;
         }
+        if (!aiFromReady) return;
         var t = modeElapsed;
-        var form = easeOut(Math.min(1, t / AI_FORM_S));
-        var liftDur = modeDuration > 0 ? modeDuration : AI_LIFT_S;
-        var liftP = easeInOut(Math.min(1, Math.max(0, (t - AI_LIFT_START_S) / liftDur)));
-        applyAiLift(aiLiftAmount() * liftP);
+        var form = easeInOut(Math.min(1, t / AI_FORM_S));
         simulateAiSphere(delta, form);
-        applyAiCamera(easeInOut(Math.min(1, t / 7)));
     }
 
     function tickQu(delta) {
@@ -1712,9 +1747,7 @@
             hideMeshShowPoints();
             pointsReady = true;
         }
-        applyAiLift(aiLiftAmount());
         simulateAiSphere(delta, 1);
-        applyAiCamera(1);
     }
 
     function tickPlaceholder(delta) {
@@ -1752,11 +1785,8 @@
     function renderFrame() {
         if (!renderer || !scene || !camera) return;
         applyCameraDolly();
-        if (controls) controls.update();
-        if (mode === 'ai') {
-            applyAiCamera(easeInOut(Math.min(1, modeElapsed / 7)));
-        } else if (mode === 'qu') {
-            applyAiCamera(1);
+        if (mode !== 'ai' && mode !== 'qu' && controls) {
+            controls.update();
         }
         renderer.render(scene, camera);
     }
@@ -1790,30 +1820,33 @@
         var delta = clock.getDelta();
         if (delta > 0.2) delta = 0.033;
 
-        if (mode === 'expand') {
-            tickExpand(delta);
-        } else if (mode === 'particleize') {
-            tickParticleize(delta);
-        } else if (mode === 'six-circles') {
-            tickLiuru(delta);
-        } else if (mode === 'chu') {
-            tickChu(delta);
-        } else if (mode === 'shou') {
-            tickShou(delta);
-        } else if (mode === 'ai') {
-            tickAi(delta);
-        } else if (mode === 'qu') {
-            tickQu(delta);
-        } else if (mode === 'ring-flow' || mode === 'fade') {
-            tickPointsHold(delta);
-        } else {
-            tickPlaceholder(delta);
+        try {
+            if (mode === 'expand') {
+                tickExpand(delta);
+            } else if (mode === 'particleize') {
+                tickParticleize(delta);
+            } else if (mode === 'six-circles') {
+                tickLiuru(delta);
+            } else if (mode === 'chu') {
+                tickChu(delta);
+            } else if (mode === 'shou') {
+                tickShou(delta);
+            } else if (mode === 'ai') {
+                tickAi(delta);
+            } else if (mode === 'qu') {
+                tickQu(delta);
+            } else if (mode === 'ring-flow' || mode === 'fade') {
+                tickPointsHold(delta);
+            } else {
+                tickPlaceholder(delta);
+            }
+
+            updateIdleMotion(delta);
+            syncMouseRipple();
+            renderFrame();
+        } catch (err) {
+            console.error('[HouseModel] frame', err);
         }
-
-        updateIdleMotion(delta);
-        syncMouseRipple();
-
-        renderFrame();
         rafId = global.requestAnimationFrame(animate);
     }
 
@@ -1844,6 +1877,9 @@
         onMouseMoveCb = opts.onMouseMove || null;
         modeDuration = (opts.durationMs || 5000) / 1000;
         modeElapsed = 0;
+        if (stageKey === 'ai' && pointsReady && points) {
+            beginAi();
+        }
         mode = stageKey;
 
         if (!containerEl) return Promise.resolve();
@@ -1899,7 +1935,7 @@
                 onResize();
                 renderFrame();
             } else if (stageKey === 'ai') {
-                beginAi();
+                if (!aiFromReady) beginAi();
                 onResize();
                 renderFrame();
             } else if (stageKey === 'qu') {
@@ -1966,15 +2002,16 @@
         }
     }
 
-    function suspend() {
+    function suspend(opts) {
+        opts = opts || {};
         endLiuruUi();
         stopLoop();
         onMouseMoveCb = null;
         mode = null;
         modeElapsed = 0;
-        applyAiLift(0);
+        if (!opts.keepVisible) applyAiLift(0);
         if (containerEl) {
-            containerEl.hidden = true;
+            if (!opts.keepVisible) containerEl.hidden = true;
             containerEl.dataset.houseMode = '';
         }
         suspended = !!(renderer && points);

@@ -536,9 +536,9 @@ const SIX_PATHS_ALGORITHM = (function () {
 
         const raw = {
             [SIX_PATHS.TIAN_DAO]: (1 - activityNorm) * (0.3 + 0.7 * patience) * (1 - dragNorm * 0.35),
-            [SIX_PATHS.REN_DAO]: 0.5 + (1 - Math.abs(activityNorm - 0.5)) * 0.5,
+            [SIX_PATHS.REN_DAO]: 0.55 + (1 - Math.abs(activityNorm - 0.45)) * 0.45,
             [SIX_PATHS.XIU_LUO_DAO]: activityNorm * (1 - patience * 0.5) + dragNorm * 0.22 + dragIntensity * 0.08,
-            [SIX_PATHS.CHU_SHENG_DAO]: chaos * (0.5 + activityNorm * 0.5) + dragNorm * 0.38,
+            [SIX_PATHS.CHU_SHENG_DAO]: chaos * (0.35 + activityNorm * 0.35) + dragNorm * 0.12,
             [SIX_PATHS.E_GUI_DAO]: (1 - activityNorm) * (1 - chaos) * (1 - Math.min(1, clicks)) * (1 - dragNorm * 0.4),
             [SIX_PATHS.DI_YU_DAO]: erratic * (0.5 + activityNorm * 0.5) + dragNorm * 0.18 * (0.5 + erratic),
         };
@@ -548,6 +548,42 @@ const SIX_PATHS_ALGORITHM = (function () {
         const out = {};
         for (const k in raw) out[k] = raw[k] / sum;
         return out;
+    }
+
+    function scorePaths(hasMarket, pathTimeRatio, userBias) {
+        const ids = [
+            SIX_PATHS.TIAN_DAO,
+            SIX_PATHS.REN_DAO,
+            SIX_PATHS.XIU_LUO_DAO,
+            SIX_PATHS.CHU_SHENG_DAO,
+            SIX_PATHS.E_GUI_DAO,
+            SIX_PATHS.DI_YU_DAO,
+        ];
+        const alpha = 0.45;
+        const scores = {};
+        let bestPathId = SIX_PATHS.REN_DAO;
+        let bestScore = -1;
+
+        if (!hasMarket && !userBias) {
+            return { pathId: bestPathId, scores: scores, bestScore: 0 };
+        }
+
+        for (let i = 0; i < ids.length; i++) {
+            const key = ids[i];
+            const marketPart = pathTimeRatio[key] || 0;
+            const userPart = userBias && userBias[key] != null ? userBias[key] : 0;
+            const score = hasMarket && userBias
+                ? marketPart + alpha * userPart
+                : userBias
+                    ? userPart
+                    : marketPart;
+            scores[key] = score;
+            if (score > bestScore) {
+                bestScore = score;
+                bestPathId = key;
+            }
+        }
+        return { pathId: bestPathId, scores: scores, bestScore: bestScore };
     }
 
     /**
@@ -576,28 +612,11 @@ const SIX_PATHS_ALGORITHM = (function () {
             ? userSummaryToPathBias(userInteractionSummary)
             : null;
 
-        let bestPathId = SIX_PATHS.REN_DAO;
-        if (hasMarket || userBias) {
-            const alpha = 0.45;
-            let bestScore = -1;
-            for (const key in sessionState.timeInPath) {
-                const marketPart = pathTimeRatio[key] || 0;
-                const userPart = userBias && userBias[key] != null ? userBias[key] : 0;
-                const score = hasMarket && userBias
-                    ? marketPart + alpha * userPart
-                    : userBias
-                        ? userPart
-                        : marketPart;
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestPathId = key;
-                }
-            }
-        }
+        const scored = scorePaths(hasMarket, pathTimeRatio, userBias);
 
-        const cfg = PATH_CONFIG[bestPathId] || PATH_CONFIG[SIX_PATHS.REN_DAO];
+        const cfg = PATH_CONFIG[scored.pathId] || PATH_CONFIG[SIX_PATHS.REN_DAO];
         return {
-            pathId: bestPathId,
+            pathId: scored.pathId,
             name: cfg.name,
             pathTimeRatio: pathTimeRatio,
             totalTime: totalTime,
@@ -635,8 +654,16 @@ const SIX_PATHS_ALGORITHM = (function () {
         const hasMarket = sessionState.active && sessionState.totalTime > 0;
         const totalTime = sessionState.totalTime || 0;
         const pathTimeRatio = {};
-        for (const key in sessionState.timeInPath) {
-            const t = sessionState.timeInPath[key];
+        const timeInPath = sessionState.timeInPath || {
+            [SIX_PATHS.TIAN_DAO]: 0,
+            [SIX_PATHS.REN_DAO]: 0,
+            [SIX_PATHS.XIU_LUO_DAO]: 0,
+            [SIX_PATHS.CHU_SHENG_DAO]: 0,
+            [SIX_PATHS.E_GUI_DAO]: 0,
+            [SIX_PATHS.DI_YU_DAO]: 0,
+        };
+        for (const key in timeInPath) {
+            const t = timeInPath[key];
             pathTimeRatio[key] = totalTime > 0 ? t / totalTime : 0;
         }
 
@@ -644,23 +671,18 @@ const SIX_PATHS_ALGORITHM = (function () {
             ? userSummaryToPathBias(userInteractionSummary)
             : null;
 
-        let bestPathId = SIX_PATHS.REN_DAO;
-        if (hasMarket || userBias) {
-            const alpha = 0.45;
-            let bestScore = -1;
-            for (const key in sessionState.timeInPath) {
-                const marketPart = pathTimeRatio[key] || 0;
-                const userPart = userBias && userBias[key] != null ? userBias[key] : 0;
-                const score = hasMarket && userBias
-                    ? marketPart + alpha * userPart
-                    : userBias
-                        ? userPart
-                        : marketPart;
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestPathId = key;
-                }
-            }
+        const scored = scorePaths(hasMarket, pathTimeRatio, userBias);
+        const bestPathId = scored.pathId;
+
+        if (typeof console !== 'undefined' && console.info) {
+            console.info('[SixPaths] finalize', bestPathId, {
+                hasMarket: hasMarket,
+                totalTime: totalTime,
+                pathTimeRatio: pathTimeRatio,
+                userBias: userBias,
+                scores: scored.scores,
+                interaction: userInteractionSummary || null,
+            });
         }
 
         const finalPath = (function () {
@@ -687,7 +709,7 @@ const SIX_PATHS_ALGORITHM = (function () {
                 minTurn: sessionState.minTurn,
                 minPriceChange24h: sessionState.minPriceChange24h,
             },
-            timeInPath: { ...sessionState.timeInPath },
+            timeInPath: { ...timeInPath },
             pathTimeRatio,
             totalTime,
             userInteractionSummary: userInteractionSummary || undefined,

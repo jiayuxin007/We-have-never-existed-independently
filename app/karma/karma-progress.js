@@ -82,7 +82,17 @@
                     var summary = global.INTERACTION_COLLECTOR
                         ? global.INTERACTION_COLLECTOR.getSummary()
                         : null;
-                    var result = SIX_PATHS_ALGORITHM.finalizeSession(summary);
+                    var result = null;
+                    try {
+                        result = SIX_PATHS_ALGORITHM.finalizeSession(summary);
+                    } catch (err) {
+                        console.error('[KarmaProgress] finalize failed', err);
+                        result = {
+                            finalPath: { pathId: 'ren', name: '人道' },
+                            pathTimeRatio: {},
+                            totalTime: 0,
+                        };
+                    }
                     try {
                         localStorage.setItem('sixPathsResult', JSON.stringify(result));
                         localStorage.setItem('sixPathsResultTime', String(Date.now()));

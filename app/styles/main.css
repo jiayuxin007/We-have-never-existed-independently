@@ -55,10 +55,21 @@ html, body {
 .effect-mount canvas {
     background: transparent !important;
 }
-#houseLayer { z-index: 20; }
+#houseLayer {
+    z-index: 20;
+    transition: opacity 0.7s ease;
+}
 #houseLayer[hidden] { display: none !important; }
 #houseLayer:not([hidden]) { pointer-events: auto; }
+#houseLayer.is-fading-out {
+    opacity: 0;
+    pointer-events: none;
+}
 #effectLayer[hidden] { display: none !important; }
+#effectLayer.is-path-pending {
+    opacity: 0;
+    visibility: hidden;
+}
 #houseLayer canvas {
     display: block;
     width: 100% !important;
@@ -140,6 +151,10 @@ html, body {
     align-items: stretch;
     gap: 8px;
     pointer-events: none;
+    transition: opacity 0.55s ease;
+}
+.karma-hud.is-fading-out {
+    opacity: 0;
 }
 .karma-hud[hidden] {
     display: none !important;
