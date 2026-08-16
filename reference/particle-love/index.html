@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Particle Love - Three.js (mount demo)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <style>
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #05070a; }
+        #stage { position: fixed; inset: 0; }
+    </style>
+</head>
+<body>
+    <div id="stage"></div>
+    <script src="three.r76.min.js"></script>
+    <script src="TweenMax.min.js"></script>
+    <script>
+        window.demoList = [
+            {
+                id: 'the-spirit',
+                title: 'The Spirit',
+                bgColor: '#343434',
+                urls: { low: 'about:blank', medium: 'about:blank', high: 'about:blank' },
+                colors: [0x559498, 0x28394d, 0x727546, 0x643f15],
+                speeds: [1.3, 0.0029, 0.83, 0.5, 3.3, 3.7]
+            }
+        ];
+    </script>
+    <script src="particle-love-embed.js"></script>
+    <script>
+        // 独立预览用：模拟主流程调用 mountParticleLove 的方式
+        window.mountParticleLove({
+            container: document.getElementById('stage'),
+            quality: 2
+        });
+    </script>
+</body>
+</html>

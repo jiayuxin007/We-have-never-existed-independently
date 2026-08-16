@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Click Hint Gallery — NewProject</title>
+    <meta name="color-scheme" content="dark">
+    <link rel="stylesheet" href="click-hint-gallery.css">
+</head>
+<body class="hint-page">
+    <header class="hint-header">
+        <p class="hint-kicker">Preview only · 不接入正式流程</p>
+        <h1>点击引导动效参考</h1>
+        <p class="hint-lead">
+            金刚经结束后，粒子球需要告诉用户「点这里才会继续」。
+            下面都是网上常见、又偏新奇的 <em>click affordance</em>：
+            不是按钮文案，而是用运动暗示可点、可进入下一步。
+            点卡片里的热点会模拟「触发成功」。
+        </p>
+    </header>
+
+    <section class="hint-hero" aria-label="叠在球体上试效果">
+        <div class="hint-hero-copy">
+            <h2>叠在球体上试</h2>
+            <p>中间是简化粒子球。右侧切换引导层，点中心触发收缩。</p>
+            <div class="hint-switcher" id="heroSwitcher" role="tablist" aria-label="引导样式"></div>
+        </div>
+        <div class="hint-hero-stage" id="heroStage">
+            <canvas id="heroSphere" aria-hidden="true"></canvas>
+            <div class="hint-overlay" id="heroOverlay" data-demo="sonar"></div>
+            <p class="hint-hero-status" id="heroStatus">等待点击</p>
+        </div>
+    </section>
+
+    <section class="hint-gallery" aria-label="动效卡片">
+        <article class="hint-card" data-demo="now" data-fit="sphere">
+            <div class="hint-stage"><div class="hint-overlay" data-demo="now"></div></div>
+            <div class="hint-meta">
+                <h3>01 · 呼吸空心圆</h3>
+                <p>你们现在的方案。慢速缩放 + 透明度起伏，像信号灯。</p>
+                <p class="hint-seen">落地页 CTA、冥想 App、你们 Stage 2</p>
+                <span class="tag tag-now">当前</span>
+            </div>
+        </article>
+
+        <article class="hint-card" data-demo="sonar" data-fit="sphere">
+            <div class="hint-stage"><div class="hint-overlay" data-demo="sonar"></div></div>
+            <div class="hint-meta">
+                <h3>02 · 声呐涟漪</h3>
+                <p>同心圆向外扩散，像定位脉冲。「这里有信号」比单纯闪烁更明确。</p>
+                <p class="hint-seen">Google Maps 定位点、Find My、雷达 UI</p>
+                <span class="tag">适合球体</span>
+            </div>
+        </article>
+
+        <article class="hint-card" data-demo="arc" data-fit="sphere">
+            <div class="hint-stage"><div class="hint-overlay" data-demo="arc"></div></div>
+            <div class="hint-meta">
+                <h3>03 · 描边圆弧</h3>
+                <p>不完整圆环缓慢画完、再消失。运动本身像在「邀请闭合」。</p>
+                <p class="hint-seen">Linear / Stripe 加载环的慢版、Lottie 热点</p>
+                <span class="tag">适合球体</span>
+            </div>
+        </article>
+
+        <article class="hint-card" data-demo="orbit" data-fit="sphere">
+            <div class="hint-stage"><div class="hint-overlay" data-demo="orbit"></div></div>
+            <div class="hint-meta">
+                <h3>04 · 绕行微粒</h3>
+                <p>一颗亮点绕中心转。宇宙感强，不抢粒子球本身的形态。</p>
+                <p class="hint-seen">Apple Event 开场、太空主题站点、行星轨道隐喻</p>
+                <span class="tag">适合球体</span>
+            </div>
+        </article>
+
+        <article class="hint-card" data-demo="inbound" data-fit="sphere">
+            <div class="hint-stage"><div class="hint-overlay" data-demo="inbound"></div></div>
+            <div class="hint-meta">
+                <h3>05 · 尘埃汇聚</h3>
+                <p>细点持续被吸向中心。预告你们点击后「球萎缩成点」的结果。</p>
+                <p class="hint-seen">黑洞/引力可视化、粒子 Demo 的预收缩</p>
+                <span class="tag">适合球体</span>
+            </div>
+        </article>
+
+        <article class="hint-card" data-demo="magnetic" data-fit="cursor">
+            <div class="hint-stage hint-stage--magnetic"><div class="hint-overlay" data-demo="magnetic"></div></div>
+            <div class="hint-meta">
+                <h3>06 · 磁吸核心</h3>
+                <p>光标靠近时，中心点被轻轻拉过去。身体感强：它在「够你」。</p>
+                <p class="hint-seen">Awwwards 机构站、GSAP magnetic button</p>
+                <span class="tag">光标类</span>
+            </div>
+        </article>
+
+        <article class="hint-card" data-demo="hold" data-fit="hold">
+            <div class="hint-stage hint-stage--hold"><div class="hint-overlay" data-demo="hold"></div></div>
+            <div class="hint-meta">
+                <h3>07 · 按住确认</h3>
+                <p>按住圆环填满才触发。减少误点，仪式感更强，适合「进入下一世」。</p>
+                <p class="hint-seen">Nintendo Switch、Apple TV、Instagram 长按</p>
+                <span class="tag">按住</span>
+            </div>
+        </article>
+
+        <article class="hint-card" data-demo="lockon" data-fit="cursor">
+            <div class="hint-stage hint-stage--lockon"><div class="hint-overlay" data-demo="lockon"></div></div>
+            <div class="hint-meta">
+                <h3>08 · 准星锁定</h3>
+                <p>靠近中心时十字吸附、外框合拢。和你们已有十字光标是同一套语言。</p>
+                <p class="hint-seen">FPS lock-on、无人机 UI、科幻 HUD</p>
+                <span class="tag">光标类</span>
+            </div>
+        </article>
+
+        <article class="hint-card" data-demo="lighthouse" data-fit="sphere">
+            <div class="hint-stage"><div class="hint-overlay" data-demo="lighthouse"></div></div>
+            <div class="hint-meta">
+                <h3>09 · 灯塔闪烁</h3>
+                <p>不规则节奏：亮—停—亮亮。比匀速呼吸更像「在呼叫你」。</p>
+                <p class="hint-seen">航海灯塔、航空障碍灯、老式信标</p>
+                <span class="tag">适合球体</span>
+            </div>
+        </article>
+
+        <article class="hint-card" data-demo="horizon" data-fit="sphere">
+            <div class="hint-stage"><div class="hint-overlay" data-demo="horizon"></div></div>
+            <div class="hint-meta">
+                <h3>10 · 事件视界</h3>
+                <p>暗核 + 缓慢旋转的亮环。像可进入的洞，而不是可按的钮。</p>
+                <p class="hint-seen">黑洞可视化、你们后面的业力坍缩</p>
+                <span class="tag">适合球体</span>
+            </div>
+        </article>
+
+        <article class="hint-card" data-demo="chevron" data-fit="sphere">
+            <div class="hint-stage"><div class="hint-overlay" data-demo="chevron"></div></div>
+            <div class="hint-meta">
+                <h3>11 · 向心折线</h3>
+                <p>四条短线周期性收向中心。方向明确：进来、点这里。</p>
+                <p class="hint-seen">iOS 下拉箭头的径向版、游戏传送门</p>
+                <span class="tag">适合球体</span>
+            </div>
+        </article>
+
+        <article class="hint-card" data-demo="bloom" data-fit="cursor">
+            <div class="hint-stage hint-stage--bloom"><div class="hint-overlay" data-demo="bloom"></div></div>
+            <div class="hint-meta">
+                <h3>12 · 靠近才亮</h3>
+                <p>平时几乎看不见；光标进入球体附近才苏醒。发现感强，不打扰观看。</p>
+                <p class="hint-seen">Codrops 热点、博物馆展陈、低干预作品站</p>
+                <span class="tag">光标类</span>
+            </div>
+        </article>
+    </section>
+
+    <footer class="hint-footer">
+        <p>
+            更适合你们这一幕的通常是：<strong>声呐、绕行微粒、尘埃汇聚、事件视界、准星锁定</strong>。
+            呼吸圆已经用过；按住确认仪式感最强，但会改变交互规则。
+        </p>
+        <p class="hint-path">打开：<code>app/preview/click-hint-gallery.html</code></p>
+    </footer>
+
+    <script src="click-hint-gallery.js"></script>
+</body>
+</html>

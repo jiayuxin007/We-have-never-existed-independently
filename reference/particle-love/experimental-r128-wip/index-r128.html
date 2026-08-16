@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Particle Love - r128 port test (WIP, currently blank screen)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <style>
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #05070a; }
+        #stage { position: fixed; inset: 0; }
+        #log { position: fixed; top: 0; left: 0; color: #0f0; font: 12px monospace; background: rgba(0,0,0,0.85); padding: 8px; z-index: 10; white-space: pre; max-width: 96vw; }
+    </style>
+</head>
+<body>
+    <div id="log">running (see particle-love-embed-r128.js header comment for known status)...</div>
+    <div id="stage"></div>
+    <script>
+        // 用本地 r128 文件而不是 CDN，避免跨域脚本报错被浏览器折叠成模糊的 "Script error."
+        window.__log = [];
+        function render() { document.getElementById('log').textContent = window.__log.join('\n'); }
+        window.addEventListener('error', function (e) {
+            window.__log.push('ERROR: ' + ((e.error && e.error.stack) || e.message));
+            render();
+        });
+    </script>
+    <script src="three.r128.min.js"></script>
+    <script src="TweenMax.min.js"></script>
+    <script>
+        window.demoList = [
+            {
+                id: 'the-spirit',
+                title: 'The Spirit',
+                bgColor: '#343434',
+                urls: { low: 'about:blank', medium: 'about:blank', high: 'about:blank' },
+                colors: [0x559498, 0x28394d, 0x727546, 0x643f15],
+                speeds: [1.3, 0.0029, 0.83, 0.5, 3.3, 3.7]
+            }
+        ];
+    </script>
+    <script src="particle-love-embed-r128.js"></script>
+    <script>
+        window.mountParticleLove({
+            container: document.getElementById('stage'),
+            quality: 2
+        });
+        window.__log.push('mountParticleLove() called, quality=2 (High)');
+        render();
+    </script>
+</body>
+</html>

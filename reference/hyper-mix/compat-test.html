@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>THREE version compat test - hyper-mix</title>
+    <style>
+        html, body { margin: 0; width: 100%; height: 100%; background: #111; }
+        #stage { position: fixed; inset: 0; }
+        #log { position: fixed; top: 0; left: 0; color: #0f0; font: 12px monospace; background: rgba(0,0,0,0.85); padding: 8px; z-index: 10; white-space: pre; max-width: 96vw; max-height: 95vh; overflow: auto; }
+        .mobile, .logo, .instruction, .footer, .dg { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="mobile"></div>
+    <div class="logo"></div>
+    <div class="instruction"></div>
+    <div class="footer"><span></span></div>
+    <div id="log">running...</div>
+    <div id="stage"></div>
+    <script>
+        window.__log = [];
+        var errCount = 0;
+        var _origErr = console.error;
+        console.error = function () {
+            errCount++;
+            window.__log.push('[console.error #' + errCount + '] ' + Array.prototype.slice.call(arguments).join(' '));
+            _origErr.apply(console, arguments);
+        };
+        function render() { document.getElementById('log').textContent = window.__log.join('\n'); }
+    </script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        window.__R128_THREE__ = window.THREE;
+        window.__log.push('[house] THREE=r128 REVISION=' + THREE.REVISION);
+        render();
+    </script>
+    <script>
+        // hash 必须在 hyper-mix-embed.js 加载前设置好
+        window.location.hash = '#amount=524k&motionBlurQuality=high';
+    </script>
+    <script src="js/three.r74.min.js"></script>
+    <script>
+        window.__R74_THREE__ = window.THREE;
+        window.__log.push('[cache] 缓存 r74 REVISION=' + THREE.REVISION);
+    </script>
+    <script src="js/hyper-mix-embed.js"></script>
+    <script>
+        window.THREE = window.__R128_THREE__;
+        window.__log.push('[house] 恢复 THREE=r128，mountHyperMix=' + typeof window.mountHyperMix);
+        render();
+
+        window.THREE = window.__R74_THREE__;
+        window.__log.push('[six-paths] 切到 THREE=r74，mountHyperMix()');
+        var handle;
+        try {
+            handle = window.mountHyperMix({ container: document.getElementById('stage') });
+            window.__log.push('[six-paths] mount 成功');
+        } catch (e) {
+            window.__log.push('[six-paths] mount 抛错: ' + e.message);
+        }
+        render();
+
+        setTimeout(function () {
+            var errsDuring = errCount;
+            handle.dispose();
+            window.THREE = window.__R128_THREE__;
+            window.__log.push('[six-paths] dispose + 切回 THREE=r128 REVISION=' + THREE.REVISION + '，渲染期间 console.error 次数=' + errsDuring + '（期望 0）');
+            render();
+
+            try {
+                var geo = new THREE.BufferGeometry();
+                geo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0], 3));
+                var r = new THREE.WebGLRenderer({ antialias: true });
+                var cam = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+                var scn = new THREE.Scene();
+                r.render(scn, cam);
+                r.dispose();
+                window.__log.push('[house] 回到房屋模型，r128 渲染验证 OK');
+            } catch (e) {
+                window.__log.push('[house] r128 渲染 THREW: ' + e.message);
+            }
+            render();
+
+            setTimeout(function () {
+                window.__log.push('[done] 完成，errCount=' + errCount + '（期望 0）');
+                render();
+            }, 1000);
+        }, 2500);
+    </script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>半球游水 — 房屋测试</title>
+    <meta name="color-scheme" content="dark">
+    <link rel="stylesheet" href="../styles/main.css?v=14">
+    <link rel="stylesheet" href="bowl-swim-preview.css?v=1">
+</head>
+<body class="bowl-preview-page">
+    <video id="previewBgVideo" class="layer global-bg-video" autoplay muted playsinline loop>
+        <source src="../../assets/video/mixkit-flying-in-the-space-between-stars-and-nebulae-32973-hd-ready.mp4" type="video/mp4">
+    </video>
+
+    <div id="bowlStage" class="bowl-stage"></div>
+
+    <header class="bowl-header">
+        <p class="bowl-hint">测试页 · 不接入主流程</p>
+        <h1>半球游水</h1>
+        <p class="bowl-note">
+            半圆玻璃罩里，房屋点云像水一样缓缓游动。拖动旋转，滚轮推拉。
+        </p>
+    </header>
+
+    <p id="bowlStatus" class="bowl-status">加载中…</p>
+
+    <script src="../effects/three-registry.js?v=3"></script>
+    <script src="bowl-swim-preview.js?v=1"></script>
+</body>
+</html>

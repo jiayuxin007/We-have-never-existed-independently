@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Constraint Particles - Three.js (mount demo)</title>
+    <style>
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #222; }
+        canvas { display: block; }
+        #stage { position: fixed; inset: 0; }
+    </style>
+</head>
+<body>
+    <div id="stage"></div>
+    <script src="js/three.r74.min.js"></script>
+    <script src="js/constraint-particles-embed.js"></script>
+    <script>
+        // 独立预览用：模拟主流程调用 mountConstraintParticles 的方式
+        window.mountConstraintParticles({
+            container: document.getElementById('stage')
+        });
+    </script>
+</body>
+</html>

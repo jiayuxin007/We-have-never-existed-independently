@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Noise Flow Field - Three.js (mount demo)</title>
+    <style>
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
+        #stage { position: fixed; inset: 0; }
+    </style>
+</head>
+<body>
+    <div id="stage"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="noise-flow-field-embed.js"></script>
+    <script>
+        // 独立预览用：模拟主流程调用 mountNoiseFlowField 的方式
+        window.mountNoiseFlowField({
+            container: document.getElementById('stage'),
+            trailAlpha: 0.1
+        });
+    </script>
+</body>
+</html>

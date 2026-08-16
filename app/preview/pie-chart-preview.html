@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pie Chart Styles — NewProject</title>
+    <meta name="color-scheme" content="dark">
+    <link rel="stylesheet" href="../styles/main.css">
+    <link rel="stylesheet" href="pie-chart-preview.css">
+</head>
+<body class="pie-preview-page">
+    <div class="pie-preview-bg" aria-hidden="true"></div>
+    <div class="pie-preview-vignette" aria-hidden="true"></div>
+
+    <p class="pie-preview-hint">扇形图样式预览 · 参考 shadcn separated donut / Dribbble dark dashboard</p>
+
+    <nav class="pie-preview-style-nav" aria-label="Chart styles">
+        <button type="button" data-variant="arc">Arc</button>
+        <button type="button" data-variant="orbital" class="is-active">Orbital</button>
+        <button type="button" data-variant="whisper">Whisper</button>
+        <button type="button" data-variant="donut">Donut</button>
+        <button type="button" data-variant="bar">Bar</button>
+    </nav>
+
+    <nav class="pie-preview-controls" aria-label="Preview modes">
+        <button type="button" data-mode="live" class="is-active">Live</button>
+        <button type="button" data-mode="final">Final</button>
+        <button type="button" data-mode="empty">Empty</button>
+    </nav>
+
+    <section class="pie-preview-hero" aria-label="Selected style preview">
+        <h1 class="pie-preview-hero-title" id="heroTitle">Path Time Ratio</h1>
+        <p class="pie-preview-hero-sub" id="heroSubtitle">Arc · 细线分离环</p>
+        <svg id="heroPie" class="karma-panel-pie karma-panel-pie--hero" viewBox="0 0 200 200" role="img" aria-label="Selected chart"></svg>
+        <div id="heroBar" class="karma-path-bar-chart karma-path-bar-chart--hero" hidden role="img" aria-label="Selected bar chart"></div>
+        <div id="heroLegend" class="karma-panel-legend karma-panel-legend--hero karma-panel-legend--pills"></div>
+    </section>
+
+    <section class="pie-preview-gallery" aria-label="Style comparison">
+        <h2 class="pie-preview-gallery-title">样式对比</h2>
+        <div class="pie-preview-gallery-grid" id="galleryGrid"></div>
+    </section>
+
+    <script src="../config/chart.config.js"></script>
+    <script src="../config/realm-assets.config.js?v=3"></script>
+    <script src="../config/timing.config.js"></script>
+    <script src="../core/event-bus.js"></script>
+    <script src="../ui/karma-pie-chart.js?v=7"></script>
+    <script src="../ui/karma-bar-chart.js?v=2"></script>
+    <script src="../ui/datav-border-box-1.js"></script>
+    <script src="../ui/karma-data-panel.js?v=9"></script>
+    <script src="pie-chart-preview.js"></script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>The Spirit - Three.js (mount demo)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <style>
+        * { margin: 0; padding: 0; overflow: hidden; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; background: #343434; }
+        canvas { display: block; }
+        #stage { position: fixed; inset: 0; }
+    </style>
+</head>
+<body>
+    <div id="stage"></div>
+    <script src="js/three.r74.min.js"></script>
+    <script src="js/the-spirit-embed.js"></script>
+    <script>
+        // 独立预览用：模拟主流程调用 mountTheSpirit 的方式
+        window.mountTheSpirit({
+            container: document.getElementById('stage')
+        });
+    </script>
+</body>
+</html>

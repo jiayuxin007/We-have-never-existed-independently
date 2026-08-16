@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>进度条样式预览 — NewProject</title>
+    <meta name="color-scheme" content="dark">
+    <link rel="stylesheet" href="../styles/main.css?v=8">
+    <link rel="stylesheet" href="progress-bar-preview.css?v=5">
+</head>
+<body class="pb-page">
+    <div class="pb-bg" aria-hidden="true"></div>
+    <div class="pb-vignette" aria-hidden="true"></div>
+
+    <header class="pb-header">
+        <p class="pb-hint">进度条样式预览 · 对齐业力条 / 面板条形图</p>
+        <h1 class="pb-title">Karma Progress</h1>
+        <p class="pb-sub">循环 8 秒，点「底部预览」可放到业力条位置对比</p>
+    </header>
+
+    <nav class="pb-filters" aria-label="类型">
+        <button type="button" data-filter="all" class="is-active">全部</button>
+        <button type="button" data-filter="linear">线形</button>
+        <button type="button" data-filter="panel">面板</button>
+        <button type="button" data-filter="hud">HUD</button>
+        <button type="button" data-filter="web">网上</button>
+    </nav>
+
+    <aside class="pb-clock">
+        <button type="button" id="pbToggle">暂停</button>
+        <input type="range" id="pbScrub" min="0" max="1000" value="0" aria-label="进度">
+        <span id="pbClockPct">0%</span>
+    </aside>
+
+    <main class="pb-grid" id="pbGrid">
+
+        <article class="pb-card" data-cat="linear panel" data-id="current">
+            <header class="pb-card-head">
+                <h2>Current</h2>
+                <p>现用业力条 · #4488ff → #ffd700</p>
+            </header>
+            <div class="pb-demo">
+                <div class="bar-current">
+                    <div class="bar-current-fill"></div>
+                </div>
+                <span class="pb-pct" data-pct></span>
+            </div>
+            <button type="button" class="pb-dock" data-dock="current">底部预览</button>
+        </article>
+
+        <article class="pb-card" data-cat="linear panel" data-id="panel-row">
+            <header class="pb-card-head">
+                <h2>Panel Row</h2>
+                <p>面板条形图单条 · 渐变填充 + 端点光点</p>
+            </header>
+            <div class="pb-demo">
+                <div class="bar-panel">
+                    <div class="bar-panel-meta">
+                        <span>Manusya Realm</span>
+                        <span data-pct></span>
+                    </div>
+                    <div class="bar-panel-track">
+                        <div class="bar-panel-fill"></div>
+                        <i class="bar-panel-dot"></i>
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="pb-dock" data-dock="panel-row">底部预览</button>
+        </article>
+
+        <article class="pb-card" data-cat="linear web" data-id="heat">
+            <header class="pb-card-head">
+                <h2>Heat Shift</h2>
+                <p>随进度变色 · 蓝 → 金</p>
+            </header>
+            <div class="pb-demo">
+                <div class="bar-heat">
+                    <div class="bar-heat-fill"></div>
+                </div>
+                <span class="pb-pct" data-pct></span>
+            </div>
+            <button type="button" class="pb-dock" data-dock="heat">底部预览</button>
+        </article>
+
+        <article class="pb-card" data-cat="linear web" data-id="eq">
+            <header class="pb-card-head">
+                <h2>Equalizer</h2>
+                <p>竖条点亮 · LED / VU</p>
+            </header>
+            <div class="pb-demo">
+                <div class="bar-eq" id="barEq"></div>
+                <span class="pb-pct" data-pct></span>
+            </div>
+            <button type="button" class="pb-dock" data-dock="eq">底部预览</button>
+        </article>
+
+        <article class="pb-card" data-cat="linear web" data-id="hollow">
+            <header class="pb-card-head">
+                <h2>Hollow Stroke</h2>
+                <p>空心描边胶囊 · 只亮边</p>
+            </header>
+            <div class="pb-demo">
+                <div class="bar-hollow">
+                    <div class="bar-hollow-fill"></div>
+                </div>
+                <span class="pb-pct" data-pct></span>
+            </div>
+            <button type="button" class="pb-dock" data-dock="hollow">底部预览</button>
+        </article>
+
+        <article class="pb-card" data-cat="linear" data-id="glass">
+            <header class="pb-card-head">
+                <h2>Glass Neon</h2>
+                <p>毛玻璃 + 霓虹 · Linear / Vercel 一类</p>
+            </header>
+            <div class="pb-demo">
+                <div class="bar-glass">
+                    <div class="bar-glass-fill"></div>
+                </div>
+                <span class="pb-pct" data-pct></span>
+            </div>
+            <button type="button" class="pb-dock" data-dock="glass">底部预览</button>
+        </article>
+
+        <article class="pb-card" data-cat="linear panel" data-id="whisper">
+            <header class="pb-card-head">
+                <h2>Whisper</h2>
+                <p>极细发丝</p>
+            </header>
+            <div class="pb-demo">
+                <div class="bar-whisper">
+                    <div class="bar-whisper-fill"></div>
+                </div>
+                <span class="pb-pct" data-pct></span>
+            </div>
+            <button type="button" class="pb-dock" data-dock="whisper">底部预览</button>
+        </article>
+
+        <article class="pb-card" data-cat="linear hud" data-id="hud">
+            <header class="pb-card-head">
+                <h2>HUD Bracket</h2>
+                <p>DataV 角框 + 细条 · 对齐数据面板</p>
+            </header>
+            <div class="pb-demo">
+                <div class="bar-hud">
+                    <span class="bar-hud-c tl"></span>
+                    <span class="bar-hud-c tr"></span>
+                    <span class="bar-hud-c bl"></span>
+                    <span class="bar-hud-c br"></span>
+                    <div class="bar-hud-fill"></div>
+                </div>
+                <span class="pb-pct" data-pct></span>
+            </div>
+            <button type="button" class="pb-dock" data-dock="hud">底部预览</button>
+        </article>
+
+        <article class="pb-card" data-cat="linear hud" data-id="scan">
+            <header class="pb-card-head">
+                <h2>Scanline</h2>
+                <p>扫描高光 · 六入 / 舍受扫环的线形版</p>
+            </header>
+            <div class="pb-demo">
+                <div class="bar-scan">
+                    <div class="bar-scan-fill"></div>
+                </div>
+                <span class="pb-pct" data-pct></span>
+            </div>
+            <button type="button" class="pb-dock" data-dock="scan">底部预览</button>
+        </article>
+
+        <article class="pb-card" data-cat="linear" data-id="pixel">
+            <header class="pb-card-head">
+                <h2>Pixel Steps</h2>
+                <p>像素块 · 对齐 Pixelate 字体气质</p>
+            </header>
+            <div class="pb-demo">
+                <div class="bar-pixel" id="barPixel"></div>
+                <span class="pb-pct" data-pct></span>
+            </div>
+            <button type="button" class="pb-dock" data-dock="pixel">底部预览</button>
+        </article>
+
+        <article class="pb-card" data-cat="linear web" data-id="steps">
+            <header class="pb-card-head">
+                <h2>Step Nodes</h2>
+                <p>节点连线 · 多步向导 / CodeFronts</p>
+            </header>
+            <div class="pb-demo">
+                <div class="bar-steps" id="barSteps">
+                    <div class="bar-steps-line"><div></div></div>
+                    <div class="bar-steps-nodes"></div>
+                </div>
+                <span class="pb-pct" data-pct></span>
+            </div>
+            <button type="button" class="pb-dock" data-dock="steps">底部预览</button>
+        </article>
+
+        <article class="pb-card" data-cat="linear web" data-id="shuttle">
+            <header class="pb-card-head">
+                <h2>Shuttle</h2>
+                <p>往返光斑 · Vista / Material 不确定态</p>
+            </header>
+            <div class="pb-demo">
+                <div class="bar-shuttle">
+                    <div class="bar-shuttle-fill"></div>
+                    <i class="bar-shuttle-blob"></i>
+                </div>
+                <span class="pb-pct" data-pct></span>
+            </div>
+            <button type="button" class="pb-dock" data-dock="shuttle">底部预览</button>
+        </article>
+
+        <article class="pb-card" data-cat="linear web hud" data-id="cyber">
+            <header class="pb-card-head">
+                <h2>Cyber Stripe</h2>
+                <p>霓虹斜纹 · Cybercore CSS</p>
+            </header>
+            <div class="pb-demo">
+                <div class="bar-cyber">
+                    <div class="bar-cyber-fill"></div>
+                </div>
+                <span class="pb-pct" data-pct></span>
+            </div>
+            <button type="button" class="pb-dock" data-dock="cyber">底部预览</button>
+        </article>
+
+        <article class="pb-card" data-cat="linear web" data-id="chip">
+            <header class="pb-card-head">
+                <h2>Edge Chip</h2>
+                <p>端点百分比胶囊 · Lazy-ui</p>
+            </header>
+            <div class="pb-demo">
+                <div class="bar-chip">
+                    <div class="bar-chip-track">
+                        <div class="bar-chip-fill"></div>
+                    </div>
+                    <i class="bar-chip-pill" data-pct></i>
+                </div>
+            </div>
+            <button type="button" class="pb-dock" data-dock="chip">底部预览</button>
+        </article>
+
+        <article class="pb-card" data-cat="linear web" data-id="pulse">
+            <header class="pb-card-head">
+                <h2>Pulse Glow</h2>
+                <p>呼吸发光 · Lazy-ui glow / pulse</p>
+            </header>
+            <div class="pb-demo">
+                <div class="bar-pulse">
+                    <div class="bar-pulse-fill"></div>
+                </div>
+                <span class="pb-pct" data-pct></span>
+            </div>
+            <button type="button" class="pb-dock" data-dock="pulse">底部预览</button>
+        </article>
+
+        <article class="pb-card" data-cat="linear web" data-id="liquid">
+            <header class="pb-card-head">
+                <h2>Liquid Wave</h2>
+                <p>液面波 + 前缘泡 · CodeFronts liquid fill</p>
+            </header>
+            <div class="pb-demo">
+                <div class="bar-liquid">
+                    <div class="bar-liquid-fill"></div>
+                </div>
+                <span class="pb-pct" data-pct></span>
+            </div>
+            <button type="button" class="pb-dock" data-dock="liquid">底部预览</button>
+        </article>
+
+        <article class="pb-card" data-cat="linear web" data-id="dots">
+            <header class="pb-card-head">
+                <h2>Dot Rail</h2>
+                <p>点列点亮 · 仪表 / Morse 轨</p>
+            </header>
+            <div class="pb-demo">
+                <div class="bar-dots" id="barDots"></div>
+                <span class="pb-pct" data-pct></span>
+            </div>
+            <button type="button" class="pb-dock" data-dock="dots">底部预览</button>
+        </article>
+
+        <article class="pb-card" data-cat="linear web" data-id="gel">
+            <header class="pb-card-head">
+                <h2>Gel Meter</h2>
+                <p>内高光凝胶 · CSS-Tricks meter</p>
+            </header>
+            <div class="pb-demo">
+                <div class="bar-gel">
+                    <div class="bar-gel-fill"></div>
+                </div>
+                <span class="pb-pct" data-pct></span>
+            </div>
+            <button type="button" class="pb-dock" data-dock="gel">底部预览</button>
+        </article>
+
+        <article class="pb-card" data-cat="linear web" data-id="ruler">
+            <header class="pb-card-head">
+                <h2>Ruler Ticks</h2>
+                <p>刻度尺 · 轨下哈希线</p>
+            </header>
+            <div class="pb-demo">
+                <div class="bar-ruler">
+                    <div class="bar-ruler-fill"></div>
+                </div>
+                <span class="pb-pct" data-pct></span>
+            </div>
+            <button type="button" class="pb-dock" data-dock="ruler">底部预览</button>
+        </article>
+
+        <article class="pb-card" data-cat="linear web" data-id="terminal">
+            <header class="pb-card-head">
+                <h2>Terminal</h2>
+                <p>命令行块 · [========&gt;····]</p>
+            </header>
+            <div class="pb-demo">
+                <div class="bar-term" id="barTerm"></div>
+                <span class="pb-pct" data-pct></span>
+            </div>
+            <button type="button" class="pb-dock" data-dock="terminal">底部预览</button>
+        </article>
+
+    </main>
+
+    <footer class="pb-dock-stage" id="pbDockStage" data-style="current">
+        <p class="pb-dock-label" id="pbDockLabel">Karma calculation in progress...</p>
+        <div class="pb-dock-slot" id="pbDockSlot"></div>
+    </footer>
+
+    <script src="progress-bar-preview.js?v=5"></script>
+</body>
+</html>

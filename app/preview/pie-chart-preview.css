@@ -1,0 +1,284 @@
+.pie-preview-page {
+    overflow: auto;
+    cursor: auto !important;
+}
+
+.pie-preview-page *,
+.pie-preview-page *::before,
+.pie-preview-page *::after {
+    cursor: auto !important;
+}
+
+.pie-preview-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background:
+        radial-gradient(ellipse 80% 60% at 20% 30%, rgba(68, 68, 120, 0.35), transparent 55%),
+        radial-gradient(ellipse 70% 50% at 80% 70%, rgba(120, 40, 80, 0.28), transparent 50%),
+        radial-gradient(circle at 50% 50%, rgba(12, 16, 28, 0.6), #000 78%);
+}
+
+.pie-preview-vignette {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: radial-gradient(circle at 50% 45%, transparent 40%, rgba(0, 0, 0, 0.72) 100%);
+}
+
+.pie-preview-hint {
+    position: fixed;
+    top: 24px;
+    left: 28px;
+    z-index: 3;
+    max-width: min(420px, calc(100vw - 200px));
+    font-family: 'SiteFont', serif;
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    opacity: 0.45;
+    pointer-events: none;
+}
+
+.pie-preview-style-nav {
+    position: fixed;
+    top: 20px;
+    right: 24px;
+    z-index: 9001;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    max-width: min(360px, calc(100vw - 48px));
+    justify-content: flex-end;
+}
+
+.pie-preview-style-nav button {
+    font-family: 'SiteFont', serif;
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 7px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 999px;
+    background: rgba(4, 6, 12, 0.72);
+    color: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(10px);
+    transition: border-color 0.25s, color 0.25s, box-shadow 0.25s;
+}
+
+.pie-preview-style-nav button:hover {
+    border-color: rgba(255, 255, 255, 0.24);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.pie-preview-style-nav button.is-active {
+    border-color: rgba(168, 149, 106, 0.35);
+    color: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 0 16px rgba(168, 149, 106, 0.08);
+}
+
+.pie-preview-controls {
+    position: fixed;
+    left: 28px;
+    bottom: 28px;
+    z-index: 3;
+    display: flex;
+    gap: 10px;
+}
+
+.pie-preview-controls button {
+    font-family: 'SiteFont', serif;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 8px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 999px;
+    background: rgba(6, 8, 14, 0.55);
+    color: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(8px);
+    transition: border-color 0.25s, color 0.25s, box-shadow 0.25s;
+}
+
+.pie-preview-controls button:hover {
+    border-color: rgba(255, 255, 255, 0.28);
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.pie-preview-controls button.is-active {
+    border-color: rgba(168, 149, 106, 0.35);
+    color: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0 18px rgba(168, 149, 106, 0.08);
+}
+
+.pie-preview-hero {
+    position: relative;
+    z-index: 2;
+    min-height: 72vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 96px 24px 48px;
+    pointer-events: none;
+}
+
+.pie-preview-hero-title {
+    margin: 0 0 6px;
+    font-family: 'SiteFont', serif;
+    font-size: clamp(0.85rem, 2vw, 1rem);
+    font-weight: 400;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    opacity: 0.88;
+    text-shadow: 0 0 18px rgba(255, 255, 255, 0.25);
+}
+
+.pie-preview-hero-sub {
+    margin: 0 0 28px;
+    font-family: 'SiteFont', serif;
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    opacity: 0.5;
+}
+
+.karma-panel-pie--hero {
+    width: min(320px, 72vw);
+    margin-bottom: 28px;
+    filter: none;
+}
+
+.karma-path-bar-chart--hero {
+    width: min(520px, 92vw);
+    margin-bottom: 28px;
+    padding: 18px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    background: rgba(4, 8, 12, 0.55);
+    backdrop-filter: blur(8px);
+}
+
+.karma-path-bar-chart--hero .karma-path-bar-name,
+.karma-path-bar-chart--hero .karma-path-bar-pct {
+    font-size: 10px;
+}
+
+.karma-path-bar-chart--hero .karma-path-bar-cn {
+    font-size: 18px;
+}
+
+.karma-path-bar-chart--hero .karma-path-bar-track {
+    height: 4px;
+}
+
+.karma-path-bar-chart--hero .karma-path-bar-dot {
+    width: 8px;
+    height: 8px;
+}
+
+.pie-preview-card-bar {
+    min-height: 280px;
+}
+
+.pie-preview-card-bar .karma-path-bar-chart {
+    padding: 8px 4px 0;
+}
+
+.pie-preview-card-bar .karma-path-bar-name,
+.pie-preview-card-bar .karma-path-bar-pct {
+    font-size: 8px;
+}
+
+.karma-panel-legend--hero {
+    width: min(360px, 88vw);
+    gap: 8px;
+}
+
+.karma-panel-legend--hero .karma-panel-legend-row {
+    opacity: 0.82;
+}
+
+.karma-panel-legend--hero .karma-panel-legend-text {
+    font-size: 0.78rem;
+}
+
+.karma-panel-legend--hero .karma-panel-legend-code {
+    font-size: 0.64rem;
+}
+
+.pie-preview-gallery {
+    position: relative;
+    z-index: 2;
+    padding: 0 24px 120px;
+    pointer-events: auto;
+}
+
+.pie-preview-gallery-title {
+    margin: 0 auto 20px;
+    max-width: 920px;
+    font-family: 'SiteFont', serif;
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    opacity: 0.42;
+    text-align: center;
+}
+
+.pie-preview-gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    max-width: 920px;
+    margin: 0 auto;
+}
+
+.pie-preview-card {
+    padding: 16px 14px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 14px;
+    background: rgba(4, 6, 12, 0.55);
+    backdrop-filter: blur(10px);
+    cursor: pointer;
+    transition: border-color 0.25s, background 0.25s, transform 0.25s;
+}
+
+.pie-preview-card:hover {
+    border-color: rgba(255, 255, 255, 0.14);
+    background: rgba(4, 6, 12, 0.72);
+}
+
+.pie-preview-card.is-selected {
+    border-color: rgba(168, 149, 106, 0.28);
+    box-shadow: 0 0 24px rgba(168, 149, 106, 0.06);
+}
+
+.pie-preview-card-label {
+    margin: 0 0 8px;
+    font-family: 'SiteFont', serif;
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 0.55;
+    text-align: center;
+}
+
+.pie-preview-card-pie {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+@media (max-width: 640px) {
+    .pie-preview-gallery-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .pie-preview-style-nav {
+        top: auto;
+        bottom: 84px;
+        left: 28px;
+        right: 28px;
+        justify-content: flex-start;
+    }
+}

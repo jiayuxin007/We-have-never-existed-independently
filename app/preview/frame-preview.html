@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BorderBox1 Preview — NewProject</title>
+    <meta name="color-scheme" content="dark">
+    <link rel="stylesheet" href="../styles/main.css">
+    <link rel="stylesheet" href="frame-preview.css">
+</head>
+<body class="frame-preview-page">
+    <div class="frame-preview-bg" aria-hidden="true"></div>
+    <div class="frame-preview-vignette" aria-hidden="true"></div>
+
+    <header class="frame-preview-header">
+        <p class="frame-preview-hint">DataV BorderBox1 预览 · 仅测试页，不接入正式流程</p>
+        <p class="frame-preview-note" id="frameNote">
+            外框：<code>DataV BorderBox1</code> · SVG 矢量边框
+        </p>
+    </header>
+
+    <aside class="frame-preview-controls" aria-label="Frame controls">
+        <label class="frame-preview-control">
+            <span>外框缩放</span>
+            <input id="frameScale" type="range" min="100" max="120" step="1" value="100">
+            <output id="frameScaleOut">100%</output>
+        </label>
+        <label class="frame-preview-control frame-preview-control--toggle">
+            <input id="frameVisible" type="checkbox" checked>
+            <span>显示外框</span>
+        </label>
+    </aside>
+
+    <script src="../config/chart.config.js"></script>
+    <script src="../config/realm-assets.config.js?v=3"></script>
+    <script src="../config/timing.config.js"></script>
+    <script src="../core/event-bus.js"></script>
+    <script src="../ui/karma-pie-chart.js?v=7"></script>
+    <script src="../ui/karma-bar-chart.js?v=2"></script>
+    <script src="../ui/datav-border-box-1.js"></script>
+    <script src="../ui/karma-data-panel.js?v=9"></script>
+    <script src="frame-preview.js"></script>
+</body>
+</html>
