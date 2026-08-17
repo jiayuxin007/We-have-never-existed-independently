@@ -118,10 +118,21 @@ html, body {
 }
 .final-quote-stage.visible {
     display: flex;
+    flex-direction: column;
     animation: fadeIn 0.8s ease-out;
 }
 .final-quote-stage[hidden] {
     display: none !important;
+}
+.final-quote-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 90%;
+    min-height: 70vh;
+    position: relative;
 }
 .final-quote-stage .final-quote-text {
     margin: 0;
@@ -131,6 +142,86 @@ html, body {
     text-align: center;
     max-width: 85%;
     line-height: 1.7;
+}
+.final-quote-cta {
+    position: fixed;
+    left: 50%;
+    bottom: 14vh;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.8s ease-out;
+}
+.final-quote-cta.is-shown {
+    opacity: 1;
+}
+.final-quote-press {
+    margin: 0;
+    font-family: 'SiteFont', serif;
+    font-size: 18px;
+    letter-spacing: 0.12em;
+    color: rgba(255, 255, 255, 0.55);
+    text-align: center;
+    pointer-events: none;
+    position: relative;
+    z-index: 1;
+}
+.final-restart-btn {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 8px 12px;
+    color: rgba(255, 255, 255, 0.82);
+    font-family: 'SiteFont', serif;
+    cursor: none;
+    pointer-events: none;
+    position: relative;
+    overflow: visible;
+}
+.final-restart-btn::after {
+    content: none;
+}
+.final-quote-cta.is-shown .final-restart-btn {
+    pointer-events: auto;
+}
+.final-restart-again {
+    position: relative;
+    display: inline-block;
+    overflow: hidden;
+    isolation: isolate;
+    clip-path: inset(0);
+    font-size: 28px;
+    letter-spacing: 0.12em;
+    line-height: 1.2;
+    animation: pressPulse 2.4s ease-in-out infinite;
+}
+.final-restart-scan {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+.final-restart-scan::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -45%;
+    width: 40%;
+    background: linear-gradient(90deg, transparent, rgba(200, 190, 255, 0.4), transparent);
+    animation: scanSweep 2.8s ease-in-out infinite;
+}
+@keyframes pressPulse {
+    0%, 100% { opacity: 0.38; }
+    50% { opacity: 0.9; }
+}
+@keyframes scanSweep {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(380%); }
 }
 @keyframes fadeIn {
     from { opacity: 0; }

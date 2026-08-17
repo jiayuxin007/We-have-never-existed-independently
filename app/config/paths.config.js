@@ -1,25 +1,15 @@
 /**
- * 六道 pathId → 展示效果（stage 8 台词与道无关，见 SIX_PATHS_SUBTITLES）
+ * 六道 pathId → 展示效果（台词与道无关，见 SIX_PATHS_SUBTITLES）
  */
 (function (global) {
     'use strict';
 
-    /** stage 8 固定三句，任意道相同：6s + 6s + 7s = 20s */
+    /** stage 11 固定一句，任意道相同 */
     global.SIX_PATHS_SUBTITLES = [
         {
-            text: 'Longing to stitch the fractured projections, as if to catch a never-offline twilight alive, within the delayed cache.',
-            atMs: 0,
-            durationMs: 6000,
-        },
-        {
-            text: 'Attachment. Solidifying the desolate instant.',
-            atMs: 6000,
-            durationMs: 6000,
-        },
-        {
             text: 'Yet all that exists here is but a transient consensus, struck by the protocol in a fleeting flash.',
-            atMs: 12000,
-            durationMs: 7000,
+            atMs: 0,
+            durationMs: 20000,
         },
     ];
 

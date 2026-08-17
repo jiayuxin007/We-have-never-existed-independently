@@ -109,7 +109,7 @@
             durationMs: 8000,
             blocking: null,
             subtitles: [{
-                text: 'Craving. Dust gathers, and the house becomes a sphere of wanting.',
+                text: 'Longing to stitch the fractured projections, as if to catch a never-offline twilight alive, within the delayed cache.',
                 atMs: 0,
                 durationMs: 8000,
                 fadeDelayMs: 0,
@@ -124,7 +124,7 @@
             durationMs: 8000,
             blocking: null,
             subtitles: [{
-                text: 'Clinging. The sphere is held, and wanting takes root.',
+                text: 'Attachment. Solidifying the desolate instant.',
                 atMs: 0,
                 durationMs: 8000,
                 fadeDelayMs: 0,
@@ -169,7 +169,7 @@
         {
             id: 13,
             key: 'uninstall-fade',
-            durationMs: 10000,
+            durationMs: 11000,
             blocking: null,
             subtitles: [{ text: 'Uninstall every illusion here, relinquish all to the echo-less void.', atMs: 0 }],
             layers: { bgVideo: true, effect: null, houseModel: 'fade', karmaBar: false },

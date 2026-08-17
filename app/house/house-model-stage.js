@@ -14,6 +14,9 @@
     var pointsMaterial = null;
     var originalPositions = null;
     var randomOffsets = null;
+    var fadeDelay = null;
+    var fadeInvMat = null;
+    var fadeUp = null;
     var pointCount = 0;
 
     var rafId = 0;
@@ -48,8 +51,9 @@
     var AI_FORM_S = 6.5;
     var AI_CAM_S = 5.5;
     var AI_CONTRACT_S = 1.8;
-    var AI_SCREEN_RATIO = 0.48;
-    var AI_SCREEN_LIFT_PX = 30;
+    /** 屏上直径 / min(宽,高)；与开头排斥球 SPHERE_RATIO=0.16（半径）对齐，故直径 0.32 */
+    var AI_SCREEN_RATIO = 0.32;
+    var AI_SCREEN_LIFT_PX = 0;
     var AI_RADIUS_MUL = 0.11;
     var AI_ATTRACTION = 0.045;
     var AI_DAMPING = 0.76;
@@ -134,7 +138,7 @@
         ];
     }
 
-    var HOUSE_MODEL_LOADER_VERSION = 25;
+    var HOUSE_MODEL_LOADER_VERSION = 26;
     var gpuWarmed = false;
     var TEXTURE_MAX = 4096;
 
@@ -396,7 +400,7 @@
                 '  return lit * max(inside * 0.7, halo);',
                 '}',
                 'void main() {',
-                '  if (uPointAlpha < 0.001) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }',
+                '  if (uPointAlpha < 0.001 || aSizeScale < 0.02) { gl_PointSize = 0.0; gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }',
                 '  vec4 world = modelMatrix * vec4(position, 1.0);',
                 '  vec4 mv = modelViewMatrix * vec4(position, 1.0);',
                 '  float dist = max(length(mv.xyz), 0.001);',
@@ -1516,6 +1520,97 @@
         keepPointCloud();
     }
 
+    function beginFade() {
+        applyAiLift(0);
+        unlockAiControls();
+        if (modelRoot) {
+            modelRoot.scale.set(1, 1, 1);
+            modelRoot.traverse(function (child) {
+                if (child.isMesh) {
+                    child.visible = false;
+                    if (child.material) {
+                        child.material.transparent = true;
+                        child.material.opacity = 0;
+                    }
+                }
+            });
+        }
+        restoreDefaultCamera();
+        resetVedanaLook();
+        hideMeshShowPoints();
+        if (points) {
+            points.visible = true;
+            points.frustumCulled = false;
+            if (points.geometry && points.geometry.attributes.position) {
+                points.geometry.attributes.position.dynamic = true;
+            }
+        }
+        if (pointsMaterial) {
+            pointsMaterial.uniforms.uPointAlpha.value = 1;
+            pointsMaterial.uniforms.uPointSize.value = 0.012;
+            pointsMaterial.uniforms.uGlow.value = 1;
+        }
+        var n = originalPositions ? originalPositions.length / 3 : 0;
+        fadeDelay = new Float32Array(n);
+        var i;
+        for (i = 0; i < n; i++) fadeDelay[i] = Math.random() * 5.4;
+        if (!fadeInvMat) fadeInvMat = new THREE.Matrix4();
+        if (!fadeUp) fadeUp = new THREE.Vector3();
+        setSizeScale(1);
+        setPointPositionsToOriginal();
+    }
+
+    function tickFade(delta) {
+        modeElapsed += delta;
+        if (!points || !originalPositions || !fadeDelay) return;
+        var posArr = points.geometry.attributes.position.array;
+        var orig = originalPositions;
+        if (posArr.length < orig.length) return;
+        var sizeAttr = points.geometry.attributes.aSizeScale;
+        var sizeArr = sizeAttr ? sizeAttr.array : null;
+        var t = modeElapsed;
+        var lift = (houseMaxDim || 10) * 0.28;
+        var drift = (houseMaxDim || 10) * 0.1;
+        if (!fadeInvMat) fadeInvMat = new THREE.Matrix4();
+        if (!fadeUp) fadeUp = new THREE.Vector3();
+        fadeInvMat.copy(points.matrixWorld).invert();
+        fadeUp.set(0, 1, 0).transformDirection(fadeInvMat).normalize();
+        var ux = fadeUp.x * lift;
+        var uy = fadeUp.y * lift;
+        var uz = fadeUp.z * lift;
+        var idx = 0;
+        var i;
+        for (i = 0; i < orig.length; i += 3) {
+            var delay = fadeDelay[idx];
+            var gone = t > delay ? (t - delay) * 0.55 : 0;
+            var a = gone >= 1 ? 0 : 1 - gone;
+            if (a <= 0.02) {
+                if (sizeArr && idx < sizeArr.length) sizeArr[idx] = 0;
+            } else {
+                var n1 = Math.sin(orig[i] * 3.1 + t * 1.35);
+                var n2 = Math.sin(orig[i + 1] * 2.7 + t * 1.05 + 8.4);
+                posArr[i] = orig[i] + ux * gone + n1 * drift * gone;
+                posArr[i + 1] = orig[i + 1] + uy * gone + n2 * drift * gone;
+                posArr[i + 2] = orig[i + 2] + uz * gone;
+                if (sizeArr && idx < sizeArr.length) sizeArr[idx] = a;
+            }
+            idx += 1;
+        }
+        points.geometry.attributes.position.needsUpdate = true;
+        if (sizeAttr) sizeAttr.needsUpdate = true;
+        if (modelRoot) {
+            modelRoot.traverse(function (child) {
+                if (child.isMesh) child.visible = false;
+            });
+        }
+        points.visible = true;
+        if (pointsMaterial) {
+            var tail = t > 7.2 ? Math.max(0, 1 - (t - 7.2) / 2.6) : 1;
+            pointsMaterial.uniforms.uPointAlpha.value = tail;
+            pointsMaterial.uniforms.uGlow.value = 1;
+        }
+    }
+
     function aiLiftAmount() {
         return (aiSphereRadius || houseMaxDim * AI_RADIUS_MUL) * 0.36 || houseMaxDim * AI_LIFT_MUL;
     }
@@ -1761,7 +1856,7 @@
     }
 
     function applyModelBreathScale() {
-        if (!modelRoot || !pointsReady || mode === 'particleize' || mode === 'six-circles' || mode === 'chu' || mode === 'shou' || mode === 'ai' || mode === 'qu') return;
+        if (!modelRoot || !pointsReady || mode === 'particleize' || mode === 'six-circles' || mode === 'chu' || mode === 'shou' || mode === 'ai' || mode === 'qu' || mode === 'fade') return;
         var t = animTime - idleEffectsStartTime;
         if (t < 0) t = 0;
         var ramp = Math.min(1, t / 2.0);
@@ -1770,7 +1865,7 @@
     }
 
     function applyCameraDolly() {
-        if (!controls || !controls.spherical || baseCameraDistance <= 0 || !pointsReady || mode === 'particleize' || mode === 'six-circles' || mode === 'chu' || mode === 'shou' || mode === 'ai' || mode === 'qu') {
+        if (!controls || !controls.spherical || baseCameraDistance <= 0 || !pointsReady || mode === 'particleize' || mode === 'six-circles' || mode === 'chu' || mode === 'shou' || mode === 'ai' || mode === 'qu' || mode === 'fade') {
             return;
         }
 
@@ -1835,7 +1930,9 @@
                 tickAi(delta);
             } else if (mode === 'qu') {
                 tickQu(delta);
-            } else if (mode === 'ring-flow' || mode === 'fade') {
+            } else if (mode === 'fade') {
+                tickFade(delta);
+            } else if (mode === 'ring-flow') {
                 tickPointsHold(delta);
             } else {
                 tickPlaceholder(delta);
@@ -1942,8 +2039,12 @@
                 if (prevMode !== 'qu') beginQu();
                 onResize();
                 renderFrame();
-            } else if (stageKey === 'ring-flow' || stageKey === 'fade') {
+            } else if (stageKey === 'ring-flow') {
                 beginPointsHold();
+                onResize();
+                renderFrame();
+            } else if (stageKey === 'fade') {
+                beginFade();
                 onResize();
                 renderFrame();
             } else if (loaded) {
@@ -2026,6 +2127,7 @@
         tearDownRenderer();
         originalPositions = null;
         randomOffsets = null;
+        fadeDelay = null;
         cachedGltf = null;
         suspended = false;
         loaded = false;
