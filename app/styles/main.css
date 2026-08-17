@@ -170,6 +170,10 @@ html, body {
     position: relative;
     z-index: 1;
 }
+.final-quote-cta.is-shown .final-quote-press,
+.final-quote-cta.is-shown .final-restart-again {
+    animation: pressPulse 2.4s ease-in-out infinite;
+}
 .final-restart-btn {
     appearance: none;
     background: transparent;
@@ -197,7 +201,6 @@ html, body {
     font-size: 28px;
     letter-spacing: 0.12em;
     line-height: 1.2;
-    animation: pressPulse 2.4s ease-in-out infinite;
 }
 .final-restart-scan {
     position: absolute;
