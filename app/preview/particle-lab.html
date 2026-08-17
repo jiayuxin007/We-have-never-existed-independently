@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Particle Lab — 粒子特效测试</title>
+    <meta name="color-scheme" content="dark">
+    <link rel="stylesheet" href="../styles/main.css?v=19">
+    <link rel="stylesheet" href="particle-lab.css?v=4">
+</head>
+<body class="particle-lab-page">
+    <canvas id="labCanvas" aria-label="粒子特效画布"></canvas>
+    <div id="labThree" class="lab-layer" hidden></div>
+    <div id="labParticles" class="lab-layer" hidden></div>
+    <iframe id="labFrame" class="lab-layer lab-frame" hidden title="WebGL Fluid Simulation" allow="fullscreen"></iframe>
+
+    <header class="lab-header">
+        <p class="lab-kicker">Preview only · 不接入正式流程 · CDN 特效在前</p>
+        <nav class="lab-tabs" id="labTabs" aria-label="粒子特效"></nav>
+        <p class="lab-note" id="labNote"></p>
+    </header>
+
+    <p class="lab-hint" id="labHint"></p>
+
+    <script src="particle-lab.js?v=9"></script>
+</body>
+</html>
