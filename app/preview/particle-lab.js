@@ -3539,6 +3539,705 @@
         };
     }
 
+    function sampleSphereCloud(n, radius) {
+        var pts = [];
+        var i;
+        var golden = Math.PI * (3 - Math.sqrt(5));
+        for (i = 0; i < n; i++) {
+            var y = 1 - (i / Math.max(n - 1, 1)) * 2;
+            var rr = Math.sqrt(Math.max(0, 1 - y * y)) * radius;
+            var th = golden * i;
+            pts.push({
+                x: Math.cos(th) * rr,
+                y: y * radius,
+                z: Math.sin(th) * rr,
+            });
+        }
+        return pts;
+    }
+
+    function sampleTorusCloud(n, R, r) {
+        var pts = [];
+        var i;
+        for (i = 0; i < n; i++) {
+            var a = Math.random() * Math.PI * 2;
+            var b = Math.random() * Math.PI * 2;
+            pts.push({
+                x: (R + r * Math.cos(b)) * Math.cos(a),
+                y: r * Math.sin(b),
+                z: (R + r * Math.cos(b)) * Math.sin(a),
+            });
+        }
+        return pts;
+    }
+
+    function createWorkEdge() {
+        var cloud = sampleHouseCloud(3200);
+        var t = 0;
+        var rot = 0.22;
+        return {
+            tick: function (dt) {
+                fade(0.28);
+                t += dt;
+                rot += dt * 0.18;
+                var progress = (Math.sin(t * 0.35) * 0.5 + 0.5);
+                var scale = Math.min(W, H) * 0.42;
+                ctx.globalCompositeOperation = 'lighter';
+                var i;
+                for (i = 0; i < cloud.length; i++) {
+                    var q = cloud[i];
+                    var n1 = noise(q.x * 2.4, q.y * 2.4 + q.z);
+                    var edge = 1 - clamp(Math.abs(n1 - progress) / 0.08, 0, 1);
+                    var gone = n1 < progress - 0.06;
+                    var px = q.x;
+                    var py = q.y;
+                    var pz = q.z;
+                    if (gone) {
+                        var drift = (progress - n1) * 0.55;
+                        px += (q.x) * drift;
+                        py += 0.4 * drift;
+                        pz += (q.z) * drift;
+                    }
+                    var pr = project3(px, py, pz, rot, scale);
+                    if (gone && edge < 0.05) continue;
+                    ctx.fillStyle = dustFill(q.z, 0.28 + edge * 0.6, edge);
+                    ctx.fillRect(pr.sx, pr.sy, 1.5 + edge * 2.4, 1.5 + edge * 2.4);
+                }
+                ctx.globalCompositeOperation = 'source-over';
+            },
+        };
+    }
+
+    function createWorkPush() {
+        var cloud = sampleHouseCloud(2800);
+        var pts = cloud.map(function (p) {
+            return { x: p.x, y: p.y, z: p.z, ox: p.x, oy: p.y, oz: p.z, vx: 0, vy: 0, vz: 0 };
+        });
+        var rot = 0.2;
+        return {
+            tick: function (dt) {
+                fade(0.24);
+                rot += dt * 0.16;
+                var mvx = pointer.x - pointer.px;
+                var mvy = pointer.y - pointer.py;
+                var scale = Math.min(W, H) * 0.42;
+                ctx.globalCompositeOperation = 'lighter';
+                var i;
+                for (i = 0; i < pts.length; i++) {
+                    var p = pts[i];
+                    var pr0 = project3(p.x, p.y, p.z, rot, scale);
+                    var dx = pr0.sx - pointer.x;
+                    var dy = pr0.sy - pointer.y;
+                    var d2 = dx * dx + dy * dy;
+                    if (d2 < 22000) {
+                        var f = 1 - d2 / 22000;
+                        p.vx += mvx * 0.0045 * f;
+                        p.vy -= mvy * 0.0045 * f;
+                        p.vz += ((dx) * 0.00002) * f;
+                    }
+                    p.vx += (p.ox - p.x) * 0.055;
+                    p.vy += (p.oy - p.y) * 0.055;
+                    p.vz += (p.oz - p.z) * 0.055;
+                    p.vx *= 0.86;
+                    p.vy *= 0.86;
+                    p.vz *= 0.86;
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.z += p.vz;
+                    var disp = Math.hypot(p.x - p.ox, p.y - p.oy, p.z - p.oz);
+                    var hot = clamp(disp * 4.5, 0, 1);
+                    var pr = project3(p.x, p.y, p.z, rot, scale);
+                    ctx.fillStyle = dustFill(p.z, 0.35 + hot * 0.5, hot);
+                    ctx.fillRect(pr.sx, pr.sy, 1.6 + hot * 1.8, 1.6 + hot * 1.8);
+                }
+                ctx.globalCompositeOperation = 'source-over';
+            },
+        };
+    }
+
+    function createWorkMorph() {
+        var n = 2800;
+        var house = sampleHouseCloud(n);
+        var sph = sampleSphereCloud(n, 0.78);
+        var tor = sampleTorusCloud(n, 0.72, 0.22);
+        var pts = [];
+        var i;
+        for (i = 0; i < n; i++) {
+            pts.push({
+                x: house[i].x, y: house[i].y, z: house[i].z,
+                a: house[i], b: sph[i], c: tor[i],
+            });
+        }
+        var t = 0;
+        var rot = 0.18;
+        return {
+            tick: function (dt) {
+                fade(0.3);
+                t += dt;
+                rot += dt * 0.2;
+                var cycle = (t % 12) / 12;
+                var phase = cycle * 3;
+                var from;
+                var to;
+                var u;
+                if (phase < 1) { from = 'a'; to = 'b'; u = easeInOut(phase); }
+                else if (phase < 2) { from = 'b'; to = 'c'; u = easeInOut(phase - 1); }
+                else { from = 'c'; to = 'a'; u = easeInOut(phase - 2); }
+                var scale = Math.min(W, H) * 0.4;
+                ctx.globalCompositeOperation = 'lighter';
+                for (i = 0; i < n; i++) {
+                    var p = pts[i];
+                    var A = p[from];
+                    var B = p[to];
+                    var tx = lerp(A.x, B.x, u);
+                    var ty = lerp(A.y, B.y, u);
+                    var tz = lerp(A.z, B.z, u);
+                    p.x += (tx - p.x) * 0.12;
+                    p.y += (ty - p.y) * 0.12;
+                    p.z += (tz - p.z) * 0.12;
+                    var pr = project3(p.x, p.y, p.z, rot, scale);
+                    ctx.fillStyle = dustFill(p.z, 0.45, 0);
+                    ctx.fillRect(pr.sx, pr.sy, 1.7, 1.7);
+                }
+                ctx.globalCompositeOperation = 'source-over';
+            },
+        };
+    }
+
+    function createWorkCurl() {
+        var cloud = sampleHouseCloud(3000);
+        var pts = cloud.map(function (p) {
+            return { x: p.x, y: p.y, z: p.z, ox: p.x, oy: p.y, oz: p.z };
+        });
+        var t = 0;
+        var rot = 0.16;
+        return {
+            tick: function (dt) {
+                fade(0.18);
+                t += dt;
+                rot += dt * 0.14;
+                var mix = 0.5 + 0.5 * Math.sin(t * 0.28);
+                var scale = Math.min(W, H) * 0.42;
+                ctx.globalCompositeOperation = 'lighter';
+                var i;
+                for (i = 0; i < pts.length; i++) {
+                    var p = pts[i];
+                    var n1 = noise(p.x * 1.6 + t * 0.2, p.y * 1.6);
+                    var n2 = noise(p.y * 1.6, p.z * 1.6 + t * 0.18);
+                    var n3 = noise(p.z * 1.6 + t * 0.16, p.x * 1.6);
+                    var cx = (n2 - 0.5) * 0.9;
+                    var cy = (n3 - 0.5) * 0.9;
+                    var cz = (n1 - 0.5) * 0.9;
+                    var tx = lerp(p.ox, p.ox + cx, mix);
+                    var ty = lerp(p.oy, p.oy + cy, mix);
+                    var tz = lerp(p.oz, p.oz + cz, mix);
+                    p.x += (tx - p.x) * 0.08;
+                    p.y += (ty - p.y) * 0.08;
+                    p.z += (tz - p.z) * 0.08;
+                    var pr = project3(p.x, p.y, p.z, rot, scale);
+                    ctx.fillStyle = dustFill(p.z, 0.4, mix * 0.25);
+                    ctx.fillRect(pr.sx, pr.sy, 1.7, 1.7);
+                }
+                ctx.globalCompositeOperation = 'source-over';
+            },
+        };
+    }
+
+    function createWorkHolo() {
+        var cloud = sampleHouseCloud(3400);
+        var t = 0;
+        var rot = 0.2;
+        return {
+            tick: function (dt) {
+                fade(0.4);
+                t += dt;
+                rot += dt * 0.15;
+                var scan = ((t * 0.35) % 1) * 2.2 - 1.1;
+                var scale = Math.min(W, H) * 0.42;
+                ctx.globalCompositeOperation = 'lighter';
+                var i;
+                for (i = 0; i < cloud.length; i++) {
+                    var q = cloud[i];
+                    var band = 1 - clamp(Math.abs(q.y - scan) / 0.07, 0, 1);
+                    var glitch = band > 0.4 ? (noise(q.x * 8, t * 4) - 0.5) * 0.06 : 0;
+                    var pr = project3(q.x + glitch, q.y, q.z, rot, scale);
+                    ctx.fillStyle = dustFill(q.z, 0.3 + band * 0.55, band);
+                    ctx.fillRect(pr.sx, pr.sy, 1.5 + band * 2, 1.5 + band * 2);
+                }
+                ctx.globalCompositeOperation = 'source-over';
+            },
+        };
+    }
+
+    function createWorkSlice() {
+        var cloud = sampleHouseCloud(3600);
+        var t = 0;
+        var rot = 0.12;
+        return {
+            tick: function (dt) {
+                fade(0.5);
+                t += dt;
+                rot += dt * 0.1;
+                var cut = lerp(-1.05, 1.15, (t % 7) / 7);
+                var scale = Math.min(W, H) * 0.42;
+                ctx.globalCompositeOperation = 'lighter';
+                var i;
+                for (i = 0; i < cloud.length; i++) {
+                    var q = cloud[i];
+                    if (q.y > cut) continue;
+                    var rim = 1 - clamp((cut - q.y) / 0.08, 0, 1);
+                    var pr = project3(q.x, q.y, q.z, rot, scale);
+                    ctx.fillStyle = dustFill(q.z, 0.38 + rim * 0.5, rim);
+                    ctx.fillRect(pr.sx, pr.sy, 1.6 + rim * 2, 1.6 + rim * 2);
+                }
+                ctx.globalCompositeOperation = 'source-over';
+            },
+        };
+    }
+
+    function createWorkBoom() {
+        var cloud = sampleHouseCloud(3000);
+        var pts = cloud.map(function (p) {
+            var len = Math.hypot(p.x, p.y, p.z) || 1;
+            return {
+                x: p.x, y: p.y, z: p.z,
+                ox: p.x, oy: p.y, oz: p.z,
+                nx: p.x / len, ny: p.y / len, nz: p.z / len,
+            };
+        });
+        var t = 0;
+        var rot = 0.2;
+        return {
+            tick: function (dt) {
+                fade(0.22);
+                t += dt;
+                rot += dt * 0.22;
+                var cycle = t % 8;
+                var boom = 0;
+                if (cycle < 2.2) boom = 0;
+                else if (cycle < 3.2) boom = easeInOut((cycle - 2.2) / 1);
+                else if (cycle < 5.5) boom = 1;
+                else boom = 1 - easeInOut((cycle - 5.5) / 2.5);
+                var scale = Math.min(W, H) * 0.42;
+                ctx.globalCompositeOperation = 'lighter';
+                var i;
+                for (i = 0; i < pts.length; i++) {
+                    var p = pts[i];
+                    var rad = boom * (1.1 + noise(p.ox * 3, p.oy * 3) * 0.8);
+                    var tx = p.ox + p.nx * rad;
+                    var ty = p.oy + p.ny * rad;
+                    var tz = p.oz + p.nz * rad;
+                    p.x += (tx - p.x) * 0.1;
+                    p.y += (ty - p.y) * 0.1;
+                    p.z += (tz - p.z) * 0.1;
+                    var pr = project3(p.x, p.y, p.z, rot, scale);
+                    ctx.fillStyle = dustFill(p.z, 0.35 + boom * 0.3, boom * 0.4);
+                    ctx.fillRect(pr.sx, pr.sy, 1.5 + boom, 1.5 + boom);
+                }
+                ctx.globalCompositeOperation = 'source-over';
+            },
+        };
+    }
+
+    function createWorkTwin() {
+        var n = 2600;
+        var house = sampleHouseCloud(n);
+        var sph = sampleSphereCloud(n, 0.72);
+        var pts = [];
+        var i;
+        for (i = 0; i < n; i++) {
+            pts.push({
+                x: house[i].x, y: house[i].y, z: house[i].z,
+                h: house[i], s: sph[i],
+            });
+        }
+        var rot = 0.2;
+        return {
+            tick: function (dt) {
+                fade(0.28);
+                rot += dt * 0.18;
+                var scale = Math.min(W, H) * 0.4;
+                ctx.globalCompositeOperation = 'lighter';
+                for (i = 0; i < n; i++) {
+                    var p = pts[i];
+                    var pr0 = project3(p.x, p.y, p.z, rot, scale);
+                    var d2 = (pr0.sx - pointer.x) * (pr0.sx - pointer.x) + (pr0.sy - pointer.y) * (pr0.sy - pointer.y);
+                    var toward = clamp(1 - d2 / 90000, 0, 1);
+                    var tx = lerp(p.h.x, p.s.x, toward);
+                    var ty = lerp(p.h.y, p.s.y, toward);
+                    var tz = lerp(p.h.z, p.s.z, toward);
+                    p.x += (tx - p.x) * 0.1;
+                    p.y += (ty - p.y) * 0.1;
+                    p.z += (tz - p.z) * 0.1;
+                    var pr = project3(p.x, p.y, p.z, rot, scale);
+                    ctx.fillStyle = dustFill(p.z, 0.4, toward * 0.35);
+                    ctx.fillRect(pr.sx, pr.sy, 1.7, 1.7);
+                }
+                ctx.globalCompositeOperation = 'source-over';
+            },
+        };
+    }
+
+    function createWorkFreeze() {
+        var cloud = sampleHouseCloud(3000);
+        var pts = cloud.map(function (p) {
+            return { x: p.x, y: p.y, z: p.z, ox: p.x, oy: p.y, oz: p.z, frozen: 0 };
+        });
+        var waves = [];
+        var t = 0;
+        var rot = 0.2;
+        return {
+            onDown: function (x, y) {
+                waves.push({ x: x, y: y, r: 8, life: 1 });
+            },
+            tick: function (dt) {
+                fade(0.32);
+                t += dt;
+                rot += dt * 0.16;
+                var i;
+                for (i = waves.length - 1; i >= 0; i--) {
+                    waves[i].r += 240 * dt;
+                    waves[i].life -= dt * 0.35;
+                    if (waves[i].life <= 0) waves.splice(i, 1);
+                }
+                if (t > 9) {
+                    t = 0;
+                    for (i = 0; i < pts.length; i++) pts[i].frozen = 0;
+                }
+                var scale = Math.min(W, H) * 0.42;
+                ctx.globalCompositeOperation = 'lighter';
+                for (i = 0; i < pts.length; i++) {
+                    var p = pts[i];
+                    var pr = project3(p.x, p.y, p.z, rot, scale);
+                    var w;
+                    for (w = 0; w < waves.length; w++) {
+                        var d = Math.hypot(pr.sx - waves[w].x, pr.sy - waves[w].y);
+                        if (Math.abs(d - waves[w].r) < 18) p.frozen = 1;
+                    }
+                    if (!p.frozen) {
+                        p.x = p.ox + Math.sin(t * 3 + p.ox * 8) * 0.05;
+                        p.y = p.oy + Math.sin(t * 3 + p.oy * 8) * 0.05;
+                        p.z = p.oz + Math.sin(t * 3 + p.oz * 8) * 0.05;
+                    }
+                    pr = project3(p.x, p.y, p.z, rot, scale);
+                    ctx.fillStyle = p.frozen ? 'rgba(230,220,255,0.75)' : dustFill(p.z, 0.38, 0);
+                    ctx.fillRect(pr.sx, pr.sy, p.frozen ? 2.2 : 1.6, p.frozen ? 2.2 : 1.6);
+                }
+                ctx.globalCompositeOperation = 'source-over';
+            },
+        };
+    }
+
+    function createWorkSeed() {
+        var cloud = sampleHouseCloud(3200);
+        var seeds = [{ x: W * 0.5, y: H * 0.52, r: 40 }];
+        var rot = 0.18;
+        return {
+            onDown: function (x, y) {
+                seeds.push({ x: x, y: y, r: 12 });
+            },
+            tick: function (dt) {
+                fade(0.36);
+                rot += dt * 0.16;
+                var i;
+                for (i = 0; i < seeds.length; i++) seeds[i].r += 90 * dt;
+                var scale = Math.min(W, H) * 0.42;
+                ctx.globalCompositeOperation = 'lighter';
+                for (i = 0; i < cloud.length; i++) {
+                    var q = cloud[i];
+                    var pr = project3(q.x, q.y, q.z, rot, scale);
+                    var vis = 0;
+                    var s;
+                    for (s = 0; s < seeds.length; s++) {
+                        var d = Math.hypot(pr.sx - seeds[s].x, pr.sy - seeds[s].y);
+                        if (d < seeds[s].r) vis = Math.max(vis, clamp(1 - (seeds[s].r - d) * 0.002, 0.35, 1));
+                    }
+                    if (vis < 0.08) continue;
+                    ctx.fillStyle = dustFill(q.z, 0.45 * vis, 0);
+                    ctx.fillRect(pr.sx, pr.sy, 1.7, 1.7);
+                }
+                ctx.globalCompositeOperation = 'source-over';
+            },
+        };
+    }
+
+    function createWorkMirror() {
+        var cloud = sampleHouseCloud(1800);
+        var t = 0;
+        var rot = 0.18;
+        return {
+            tick: function (dt) {
+                fade(0.32);
+                t += dt;
+                rot += dt * 0.16;
+                var gap = 0.55 + 0.12 * Math.sin(t * 0.7);
+                var scale = Math.min(W, H) * 0.34;
+                ctx.globalCompositeOperation = 'lighter';
+                var i;
+                var side;
+                for (side = -1; side <= 1; side += 2) {
+                    for (i = 0; i < cloud.length; i++) {
+                        var q = cloud[i];
+                        var x = q.x * side + gap * side;
+                        var pr = project3(x, q.y, q.z, rot, scale);
+                        ctx.fillStyle = side < 0 ? dustFill(q.z, 0.42, 0) : 'rgba(200,210,255,0.42)';
+                        ctx.fillRect(pr.sx, pr.sy, 1.6, 1.6);
+                    }
+                }
+                ctx.globalCompositeOperation = 'source-over';
+            },
+        };
+    }
+
+    function createWorkRift() {
+        var cloud = sampleHouseCloud(3200);
+        var t = 0;
+        var rot = 0.15;
+        return {
+            tick: function (dt) {
+                fade(0.3);
+                t += dt;
+                rot += dt * 0.12;
+                var open = 0.5 + 0.5 * Math.sin(t * 0.45);
+                var scale = Math.min(W, H) * 0.42;
+                ctx.globalCompositeOperation = 'lighter';
+                var i;
+                for (i = 0; i < cloud.length; i++) {
+                    var q = cloud[i];
+                    var split = (q.x >= 0 ? 1 : -1) * open * 0.42;
+                    var pr = project3(q.x + split, q.y, q.z, rot, scale);
+                    var rim = 1 - clamp(Math.abs(q.x) / 0.12, 0, 1);
+                    ctx.fillStyle = dustFill(q.z, 0.38 + rim * 0.4, rim * open);
+                    ctx.fillRect(pr.sx, pr.sy, 1.6 + rim, 1.6 + rim);
+                }
+                ctx.globalCompositeOperation = 'source-over';
+            },
+        };
+    }
+
+    function createWorkEcho() {
+        var cloud = sampleHouseCloud(3000);
+        var waves = [];
+        var rot = 0.2;
+        return {
+            onDown: function (x, y) {
+                waves.push({ x: x, y: y, r: 6, life: 1, delay: 0 });
+                waves.push({ x: x, y: y, r: 6, life: 1, delay: 0.28 });
+                waves.push({ x: x, y: y, r: 6, life: 1, delay: 0.56 });
+            },
+            tick: function (dt) {
+                fade(0.34);
+                rot += dt * 0.18;
+                var i;
+                for (i = waves.length - 1; i >= 0; i--) {
+                    if (waves[i].delay > 0) {
+                        waves[i].delay -= dt;
+                        continue;
+                    }
+                    waves[i].r += 250 * dt;
+                    waves[i].life -= dt * 0.48;
+                    if (waves[i].life <= 0) waves.splice(i, 1);
+                }
+                var scale = Math.min(W, H) * 0.42;
+                ctx.globalCompositeOperation = 'lighter';
+                for (i = 0; i < cloud.length; i++) {
+                    var q = cloud[i];
+                    var pr = project3(q.x, q.y, q.z, rot, scale);
+                    var hot = 0;
+                    var ox = 0;
+                    var oy = 0;
+                    var w;
+                    for (w = 0; w < waves.length; w++) {
+                        var wv = waves[w];
+                        if (wv.delay > 0) continue;
+                        var d = Math.hypot(pr.sx - wv.x, pr.sy - wv.y);
+                        var band = Math.abs(d - wv.r);
+                        if (band < 22) {
+                            var pulse = (1 - band / 22) * wv.life;
+                            hot = Math.max(hot, pulse);
+                            ox += ((pr.sx - wv.x) / (d + 0.001)) * pulse * 10;
+                            oy += ((pr.sy - wv.y) / (d + 0.001)) * pulse * 10;
+                        }
+                    }
+                    ctx.fillStyle = dustFill(q.z, 0.36 + hot * 0.5, hot);
+                    ctx.fillRect(pr.sx + ox, pr.sy + oy, 1.6 + hot * 2, 1.6 + hot * 2);
+                }
+                ctx.globalCompositeOperation = 'source-over';
+            },
+        };
+    }
+
+    function createWorkCache() {
+        var n = 90;
+        var trail = [];
+        var i;
+        for (i = 0; i < n; i++) trail.push({ x: W * 0.5, y: H * 0.55 });
+        var cloud = sampleHouseCloud(2400);
+        var rot = 0.2;
+        return {
+            tick: function (dt) {
+                fade(0.26);
+                rot += dt * 0.16;
+                trail[0].x += (pointer.x - trail[0].x) * 0.18;
+                trail[0].y += (pointer.y - trail[0].y) * 0.18;
+                for (i = 1; i < n; i++) {
+                    trail[i].x += (trail[i - 1].x - trail[i].x) * 0.22;
+                    trail[i].y += (trail[i - 1].y - trail[i].y) * 0.22;
+                }
+                var delayed = trail[n - 1];
+                var scale = Math.min(W, H) * 0.4;
+                ctx.globalCompositeOperation = 'lighter';
+                for (i = 0; i < cloud.length; i++) {
+                    var q = cloud[i];
+                    var pr = project3(q.x, q.y, q.z, rot, scale);
+                    var dx = delayed.x - pr.sx;
+                    var dy = delayed.y - pr.sy;
+                    var d2 = dx * dx + dy * dy + 80;
+                    pr.sx += dx / d2 * 380;
+                    pr.sy += dy / d2 * 380;
+                    ctx.fillStyle = dustFill(q.z, 0.4, 0);
+                    ctx.fillRect(pr.sx, pr.sy, 1.7, 1.7);
+                }
+                ctx.globalCompositeOperation = 'source-over';
+            },
+        };
+    }
+
+    function createWorkTremor() {
+        var cloud = sampleHouseCloud(3200);
+        var t = 0;
+        var rot = 0.14;
+        return {
+            tick: function (dt) {
+                fade(0.28);
+                t += dt;
+                rot += dt * 0.12;
+                var scale = Math.min(W, H) * 0.42;
+                ctx.globalCompositeOperation = 'lighter';
+                var i;
+                for (i = 0; i < cloud.length; i++) {
+                    var q = cloud[i];
+                    var pr0 = project3(q.x, q.y, q.z, rot, scale);
+                    var d = Math.hypot(pr0.sx - pointer.x, pr0.sy - pointer.y);
+                    var amp = 0.035 * Math.exp(-d * 0.004) + 0.008;
+                    var jx = Math.sin(t * 18 + q.x * 20) * amp;
+                    var jy = Math.cos(t * 16 + q.y * 20) * amp;
+                    var pr = project3(q.x + jx, q.y + jy, q.z, rot, scale);
+                    ctx.fillStyle = dustFill(q.z, 0.4, clamp(40 / (d + 20), 0, 0.5));
+                    ctx.fillRect(pr.sx, pr.sy, 1.6, 1.6);
+                }
+                ctx.globalCompositeOperation = 'source-over';
+            },
+        };
+    }
+
+    function createWorkUnveil() {
+        var cloud = sampleHouseCloud(3000);
+        var fog = [];
+        var i;
+        for (i = 0; i < 1600; i++) {
+            fog.push({
+                x: Math.random() * W,
+                y: Math.random() * H,
+                vx: rand(-0.25, 0.25),
+                vy: rand(-0.2, 0.2),
+                s: rand(1.2, 2.6),
+            });
+        }
+        var t = 0;
+        var rot = 0.12;
+        return {
+            tick: function (dt) {
+                fade(0.2);
+                t += dt;
+                rot += dt * 0.1;
+                var clear = easeInOut(clamp((t % 10) / 6, 0, 1));
+                var scale = Math.min(W, H) * 0.42;
+                ctx.globalCompositeOperation = 'lighter';
+                for (i = 0; i < cloud.length; i++) {
+                    var q = cloud[i];
+                    var pr = project3(q.x, q.y, q.z, rot, scale);
+                    ctx.fillStyle = dustFill(q.z, 0.25 + clear * 0.35, 0);
+                    ctx.fillRect(pr.sx, pr.sy, 1.7, 1.7);
+                }
+                for (i = 0; i < fog.length; i++) {
+                    var f = fog[i];
+                    f.x += f.vx + (pointer.x / Math.max(W, 1) - 0.5) * 0.8;
+                    f.y += f.vy;
+                    if (f.x < 0) f.x = W;
+                    if (f.x > W) f.x = 0;
+                    if (f.y < 0) f.y = H;
+                    if (f.y > H) f.y = 0;
+                    ctx.fillStyle = 'rgba(180,170,220,' + (0.22 * (1 - clear)) + ')';
+                    ctx.fillRect(f.x, f.y, f.s, f.s);
+                }
+                ctx.globalCompositeOperation = 'source-over';
+            },
+        };
+    }
+
+    function createWorkNameForm() {
+        var cloud = sampleHouseCloud(2000);
+        var t = 0;
+        var rot = 0.16;
+        return {
+            tick: function (dt) {
+                fade(0.3);
+                t += dt;
+                rot += dt * 0.14;
+                var sep = (0.5 + 0.5 * Math.sin(t * 0.5)) * 0.38;
+                var scale = Math.min(W, H) * 0.36;
+                ctx.globalCompositeOperation = 'lighter';
+                var i;
+                for (i = 0; i < cloud.length; i++) {
+                    var q = cloud[i];
+                    var prA = project3(q.x - sep, q.y, q.z, rot, scale);
+                    var prB = project3(q.x + sep, q.y, q.z, rot, scale);
+                    ctx.fillStyle = dustFill(q.z, 0.4, 0);
+                    ctx.fillRect(prA.sx, prA.sy, 1.6, 1.6);
+                    ctx.fillStyle = 'rgba(255,140,150,0.38)';
+                    ctx.fillRect(prB.sx, prB.sy, 1.6, 1.6);
+                }
+                ctx.globalCompositeOperation = 'source-over';
+            },
+        };
+    }
+
+    function createWorkWell() {
+        var cloud = sampleHouseCloud(2800);
+        var pts = cloud.map(function (p, i) {
+            return { x: p.x, y: p.y, z: p.z, ox: p.x, oy: p.y, oz: p.z, path: i % 6 };
+        });
+        var t = 0;
+        var rot = 0.18;
+        return {
+            tick: function (dt) {
+                fade(0.26);
+                t += dt;
+                rot += dt * 0.16;
+                var pull = 0.5 + 0.5 * Math.sin(t * 0.4);
+                var scale = Math.min(W, H) * 0.4;
+                ctx.globalCompositeOperation = 'lighter';
+                var i;
+                for (i = 0; i < pts.length; i++) {
+                    var p = pts[i];
+                    var a = (p.path / 6) * Math.PI * 2;
+                    var wx = Math.cos(a) * 1.05;
+                    var wy = Math.sin(a * 0.7) * 0.35;
+                    var wz = Math.sin(a) * 1.05;
+                    p.x += (lerp(p.ox, wx, pull) - p.x) * 0.06;
+                    p.y += (lerp(p.oy, wy, pull) - p.y) * 0.06;
+                    p.z += (lerp(p.oz, wz, pull) - p.z) * 0.06;
+                    var pr = project3(p.x, p.y, p.z, rot, scale);
+                    var col = PATH_RGB[p.path];
+                    ctx.fillStyle = 'rgba(' + col[0] + ',' + col[1] + ',' + col[2] + ',0.5)';
+                    ctx.fillRect(pr.sx, pr.sy, 1.7, 1.7);
+                }
+                ctx.globalCompositeOperation = 'source-over';
+            },
+        };
+    }
+
     var EFFECTS = [
         { id: 'fluid', label: 'WebGL流体', layer: 'frame', hint: '按住拖动，彩色墨会卷成涡', note: 'Pavel Dobryakov 的 WebGL Fluid Simulation。GPU Navier-Stokes，Google Experiments 上最有名的流体之一。', create: createFluid },
         { id: 'halo', label: 'VANTA光晕', layer: 'three', hint: '鼠标会推开光晕核', note: 'Vanta.js HALO。Three.js 体积光，官网 hero 常用。', create: function () { return createVanta('halo', { baseColor: 0x1a0533, amplitudeFactor: 1.3, size: 1.15 }); } },
@@ -3572,6 +4271,24 @@
         { id: 'work-consensus', label: '作品·共识', hint: '六道颜色会短暂合成一闪', note: '对应六道那句协议共识：六色尘合一再分开。', create: createWorkConsensus },
         { id: 'work-flesh', label: '作品·血肉', hint: '光标能把房屋点云拽出黏性', note: '对应名色血肉：点有滞后，被拉处发红。', create: createWorkFlesh },
         { id: 'work-quote', label: '作品·终句', hint: '点会慢慢停住、变暗', note: '对应终句：运动熄灭，房屋还在，已经不像活的。', create: createWorkQuote },
+        { id: 'work-edge', label: '作品·溶边', hint: '房屋从噪声边缘溶掉，亮边往外飘', note: '网上同类：Codrops Three.js dissolve。溶蚀阈值 + 边缘粒子脱落。', create: createWorkEdge },
+        { id: 'work-push', label: '作品·手扫', hint: '挥手把点云拨开，点会自己弹回', note: '网上同类：hologram-particles 的 cursor pusher。位移越大越亮。', create: createWorkPush },
+        { id: 'work-morph', label: '作品·形变', hint: '房屋、球、环互相变', note: '网上同类：FBO particle morph / nicoptere。三种静默目标互相 lerp。', create: createWorkMorph },
+        { id: 'work-curl', label: '作品·卷曲', hint: '房屋会被噪声卷走，再慢慢认回轮廓', note: '网上同类：Maxime Heckel curl-noise 点云。有机流动后再贴回。', create: createWorkCurl },
+        { id: 'work-holo', label: '作品·全息', hint: '一道扫描带刮过房屋', note: '网上同类：全息点云 / scanline。扫到的点发亮并微微错位。', create: createWorkHolo },
+        { id: 'work-slice', label: '作品·切片', hint: '房屋像被一层层切开显现', note: '网上同类：CT / 扫描显现。截面边缘更亮。', create: createWorkSlice },
+        { id: 'work-boom', label: '作品·溶爆', hint: '房屋会炸开成尘，再吸回去', note: '网上同类：Codrops dissolve boom。沿法线炸开再收回。', create: createWorkBoom },
+        { id: 'work-twin', label: '作品·双形态', hint: '光标靠近的地方会变成球', note: '网上同类：双目标 morph。远处是房屋，近处被收成球。', create: createWorkTwin },
+        { id: 'work-freeze', label: '作品·凝固波', hint: '点击，波走过的点会冻住', note: '触的冲击波反过来：波不是撕开，是把名色冻实。', create: createWorkFreeze },
+        { id: 'work-seed', label: '作品·种点', hint: '点击一处，房屋从那里长出来', note: '无明的局部版：显现从触点扩散。', create: createWorkSeed },
+        { id: 'work-mirror', label: '作品·镜像', hint: '两座房屋对望', note: '对应识：The Other. 镜像的幻自我。', create: createWorkMirror },
+        { id: 'work-rift', label: '作品·裂隙', hint: '房屋会沿中缝被撕开', note: '对应六入台词里的 echoing rift。', create: createWorkRift },
+        { id: 'work-echo', label: '作品·回声', hint: '点击，冲击波会晚一步再响两次', note: '触的延迟回声。同一波，三次到达。', create: createWorkEcho },
+        { id: 'work-cache', label: '作品·延迟', hint: '房屋被一个迟到的光标拽着', note: '对应爱：delayed cache。引力跟着延迟链，不是现在的鼠标。', create: createWorkCache },
+        { id: 'work-tremor', label: '作品·尘颤', hint: '光标是震源，整团尘在抖', note: '对应触：collective tremor of cosmic dust。', create: createWorkTremor },
+        { id: 'work-unveil', label: '作品·揭幕', hint: '雾点散开，房屋才被看见', note: '无明揭开：先是尘雾，再露出轮廓。', create: createWorkUnveil },
+        { id: 'work-nameform', label: '作品·名色分', hint: '一座房屋裂成紫和红两套点', note: '名和色暂时分开，再并回去。', create: createWorkNameForm },
+        { id: 'work-well', label: '作品·业井', hint: '房屋会被六道颜色的井拉开', note: '有：六个吸引子把同一座房屋拆成六道。', create: createWorkWell },
         { id: 'attract', label: '引力汇聚', hint: '所有粒子被吸向光标', note: '万有引力点。和你们聚球很近。', create: createMouseAttract },
         { id: 'meteor', label: '流星雨', hint: '只看就行', note: '拖尾线段粒子。转场、夜空。', create: createMeteor },
         { id: 'orbit', label: '环绕', hint: '粒子绕着光标转', note: '轨道粒子。光标是中心，点在椭圆上转。', create: createOrbit },
@@ -3585,9 +4302,7 @@
         { id: 'ash', label: '灰烬', hint: '靠近会把灰吹上去', note: '缓慢上升的热灰点。焰尾更冷的亲戚。', create: createAsh },
         { id: 'galaxy', label: '螺旋星系', hint: '鼠标靠近会轻微扭曲旋臂', note: '四臂螺旋 + 加色混合。Three.js Journey 星系课的 2D 版，适合宇宙开场。', create: createGalaxy },
         { id: 'ember', label: '焰尾', hint: '挥动鼠标留下火星', note: '粒子寿命 + 上升浮力。游戏技能拖尾、光标火焰一类。', create: createEmber },
-        { id: 'ink', label: '烟墨', hint: '慢慢划，墨会卷走', note: '用噪声扰动近似 Pavel Dobryakov 那种 WebGL 流体的观感，不必上完整 Navier-Stokes。', create: createInk },
         { id: 'flow', label: '流场', hint: '只看就行，场在自己流动', note: 'Perlin 风场推粒子。Tyler Hobbs 生成艺术、shadertoy flow field 一路。', create: createFlow },
-        { id: 'swarm', label: '蜂群', hint: '光标是蜂王，粒子会追随', note: '简化 boids：靠近 + 对齐。互动 logo、跟随光标很有效。', create: createSwarm },
         { id: 'vortex', label: '漩涡', hint: '漩涡中心跟着鼠标', note: '角动量向内收。和你们「爱 / 取」聚球是同一类力。', create: createVortex },
         { id: 'blackhole', label: '吸积盘', hint: '盘面会跟着鼠标微移', note: '近快远慢的轨道粒子 + 事件视界。和你们宇宙背景最贴。', create: createBlackhole },
     ];
