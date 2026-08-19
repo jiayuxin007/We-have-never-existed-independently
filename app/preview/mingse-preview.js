@@ -30,6 +30,12 @@
             note: '2.4s 溶点 + 压缩 sin 拉扯 + 2.5s 慢慢收回房屋点云 · 循环播放',
             subtitle: 'Apparition. Entangling into flesh and blood.',
         },
+        'edge-slice': {
+            label: '溶边切片',
+            durationS: 16,
+            note: '贴图先溶边，点云再自下而上切片长出 · 16s 循环',
+            subtitle: 'Apparition. Entangling into flesh and blood.',
+        },
         liuru: {
             label: '六入',
             durationS: 5,
@@ -64,13 +70,13 @@
             label: '爱',
             durationS: 8,
             note: '房屋点云 8s 聚成二维粒子球，同时慢慢升到上方 · 交互对齐 sketch2812705',
-            subtitle: 'Craving. Dust gathers, and the house becomes a sphere of wanting.',
+            subtitle: 'Longing to stitch the fractured projections, as if to catch a never-offline twilight alive, within the delayed cache.',
         },
         qu: {
             label: '取',
             durationS: 8,
             note: '球已在上方不再移动，8s 保持 sketch 交互：慢转、鼠标推开再弹回',
-            subtitle: 'Clinging. The sphere is held, and wanting takes root.',
+            subtitle: 'Attachment. Solidifying the desolate instant.',
         },
         'qu-hud': {
             label: '业力条',
@@ -116,7 +122,10 @@
         },
     };
 
-    var currentEffect = 'mingse';
+    var currentEffect = (function () {
+        var h = (global.location.hash || '').replace('#', '');
+        return EFFECTS[h] ? h : 'edge-slice';
+    })();
     var MODEL_URLS = [
         '../../assets/models/less_25mb.glb',
         '../assets/models/less_25mb.glb',
@@ -140,6 +149,8 @@
     }
 
     var scene, camera, renderer, controls, modelRoot, points, pointsMaterial, targetMesh;
+    var meshBaseMaterial = null;
+    var meshDissolveMaterial = null;
     var originalPositions = null;
     var randomOffsets = null;
     var mirrorOffsets = null;
@@ -159,7 +170,7 @@
     var COL_DEFAULT = { r: 0.2, g: 0.5, b: 1.0 };
     var COL_HOUSE = { r: 139 / 255, g: 92 / 255, b: 246 / 255 };
     var COL_STONE = { r: 0.38, g: 0.42, b: 0.39 };
-    var AI_SCREEN_RATIO = 0.26;
+    var AI_SCREEN_RATIO = 0.32;
     var AI_FORM_S = 6.5;
     var AI_ATTRACTION = 0.045;
     var AI_DAMPING = 0.76;
@@ -240,6 +251,28 @@
         t = Math.min(1, Math.max(0, t));
         return 1 - Math.pow(1 - t, 2.4);
     }
+
+    function smootherstep(t) {
+        t = Math.min(1, Math.max(0, t));
+        return t * t * t * (t * (t * 6 - 15) + 10);
+    }
+
+    var GLSL_VNOISE = [
+        'float hash21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }',
+        'float vnoise(vec2 p) {',
+        '  vec2 i = floor(p);',
+        '  vec2 f = fract(p);',
+        '  vec2 u = f * f * (3.0 - 2.0 * f);',
+        '  return mix(mix(hash21(i), hash21(i + vec2(1.0, 0.0)), u.x), mix(hash21(i + vec2(0.0, 1.0)), hash21(i + vec2(1.0, 1.0)), u.x), u.y);',
+        '}',
+    ].join('\n');
+    var dissolveUniforms = {
+        uDissolve: { value: 0 },
+        uEdgeWidth: { value: 0.11 },
+        uNoiseFreq: { value: 0.4 },
+        uPeel: { value: 0 },
+        opacity: { value: 1 },
+    };
 
     function lerp(a, b, t) {
         return a + (b - a) * t;
@@ -342,6 +375,10 @@
                 uSweepColor: { value: new THREE.Vector3(0.85, 0.95, 1.0) },
                 uSweepStrength: { value: 1 },
                 uSweepBoost: { value: 1 },
+                uSliceOn: { value: 0 },
+                uSliceCut: { value: -999 },
+                uSliceRim: { value: 0.16 },
+                uSliceNoise: { value: 0 },
             },
             vertexShader: [
                 'attribute float aSizeScale;',
@@ -361,24 +398,41 @@
                 'uniform float uAccent;',
                 'uniform float uBloom;',
                 'uniform float uSweepBoost;',
+                'uniform float uSliceOn;',
+                'uniform float uSliceCut;',
+                'uniform float uSliceRim;',
+                'uniform float uSliceNoise;',
                 'varying float vGlow;',
                 'varying float vSweep;',
                 'varying vec3 vColor;',
                 'varying float vRipple;',
+                GLSL_VNOISE,
                 'void main() {',
                 '  if (uPointAlpha < 0.001) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }',
-                '  vec4 world = modelMatrix * vec4(position, 1.0);',
-                '  vec4 mv = modelViewMatrix * vec4(position, 1.0);',
+                '  vec3 pos = position;',
+                '  float sliceVis = 1.0;',
+                '  float sliceRim = 0.0;',
+                '  if (uSliceOn > 0.5) {',
+                '    vec4 world0 = modelMatrix * vec4(position, 1.0);',
+                '    float nCut = (vnoise(vec2(position.x * 0.22 + 1.7, position.z * 0.22)) - 0.5) * uSliceNoise;',
+                '    float d = (uSliceCut + nCut) - world0.y;',
+                '    if (d < 0.0) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }',
+                '    sliceVis = 1.0;',
+                '    sliceRim = 1.0 - clamp(d / max(uSliceRim, 0.0001), 0.0, 1.0);',
+                '  }',
+                '  vec4 world = modelMatrix * vec4(pos, 1.0);',
+                '  vec4 mv = modelViewMatrix * vec4(pos, 1.0);',
                 '  float dist = max(length(mv.xyz), 0.001);',
                 '  float sweepBand = 1.0 - smoothstep(0.0, uSweepWidth, abs(world.y - uSweepY));',
                 '  float mouseDist = length(world.xyz - uMouse);',
                 '  float rippleHalo = 1.0 - smoothstep(uMouseRadius * 0.12, uMouseRadius, mouseDist);',
                 '  float rippleCore = 1.0 - smoothstep(0.0, uMouseRadius * 0.3, mouseDist);',
                 '  float ripple = min(1.0, rippleHalo * 0.72 + rippleCore) * uRipple;',
-                '  gl_PointSize = uPointSize * (300.0 / dist) * aSizeScale * (1.0 + sweepBand * 2.2 * uSweepBoost + ripple * 1.15 + uBloom * 1.85);',
+                '  gl_PointSize = uPointSize * (300.0 / dist) * aSizeScale * sliceVis * (1.0 + sweepBand * 2.2 * uSweepBoost + ripple * 1.15 + uBloom * 1.85 + sliceRim * 2.4);',
                 '  gl_Position = projectionMatrix * mv;',
-                '  vGlow = uGlow + sweepBand * 3.2 * uSweepBoost + ripple * 7.2 + uOverload * 2.0 + uBloom * 1.45;',
-                '  vSweep = max(sweepBand, ripple);',
+                '  if (uSliceOn > 0.5) gl_Position.z -= 0.006 * gl_Position.w;',
+                '  vGlow = uGlow + sweepBand * 3.2 * uSweepBoost + ripple * 7.2 + uOverload * 2.0 + uBloom * 1.45 + sliceRim * 2.8;',
+                '  vSweep = max(max(sweepBand, ripple), sliceRim);',
                 '  vRipple = ripple;',
                 '  vec3 baseCol = mix(uColorA, uColorB, uAccent);',
                 '  vColor = mix(baseCol, uRealmColor, uBurst);',
@@ -411,6 +465,7 @@
         clock = new THREE.Clock();
 
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        if (renderer.debug) renderer.debug.checkShaderErrors = true;
         renderer.setClearColor(0x000000, 0);
         renderer.setPixelRatio(Math.min(global.devicePixelRatio || 1, 2));
         if (renderer.outputEncoding !== undefined) renderer.outputEncoding = THREE.sRGBEncoding;
@@ -457,6 +512,9 @@
             meshGeom.setAttribute('uv', new THREE.BufferAttribute(uvCopy, 2));
         }
         if (model.indices) meshGeom.setIndex(Array.prototype.slice.call(model.indices));
+        if (!meshGeom.attributes.uv) {
+            meshGeom.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(pointCount * 2), 2));
+        }
         meshGeom.computeVertexNormals();
         targetMesh = new THREE.Mesh(meshGeom, new THREE.MeshBasicMaterial({
             color: 0xffffff,
@@ -465,6 +523,7 @@
             depthWrite: false,
             side: THREE.DoubleSide,
         }));
+        meshBaseMaterial = targetMesh.material;
         targetMesh.rotation.x = Math.PI / 2;
         targetMesh.visible = false;
         if (model.image) {
@@ -564,8 +623,11 @@
             tex.flipY = false;
             if (THREE.sRGBEncoding !== undefined) tex.encoding = THREE.sRGBEncoding;
             tex.needsUpdate = true;
-            targetMesh.material.map = tex;
-            targetMesh.material.needsUpdate = true;
+            if (meshBaseMaterial) {
+                meshBaseMaterial.map = tex;
+                meshBaseMaterial.needsUpdate = true;
+            }
+            syncDissolveMap();
         };
         img.onerror = function () { URL.revokeObjectURL(url); };
         img.src = url;
@@ -573,9 +635,120 @@
 
     function setMeshOpacity(opacity) {
         if (!targetMesh) return;
-        targetMesh.material.opacity = opacity;
-        targetMesh.material.transparent = true;
+        var mat = targetMesh.material;
+        if (mat && mat.uniforms && mat.uniforms.uOpacity) {
+            mat.uniforms.uOpacity.value = opacity;
+            targetMesh.visible = opacity > 0.01;
+            return;
+        }
+        mat.opacity = opacity;
+        mat.transparent = true;
         targetMesh.visible = opacity > 0.01;
+    }
+
+    var whiteTex = null;
+    function getWhiteTex() {
+        if (whiteTex) return whiteTex;
+        whiteTex = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1, THREE.RGBAFormat);
+        whiteTex.needsUpdate = true;
+        return whiteTex;
+    }
+
+    function syncDissolveMap() {
+        if (!meshDissolveMaterial || !meshDissolveMaterial.uniforms) return;
+        var map = meshBaseMaterial && meshBaseMaterial.map;
+        if (map) {
+            meshDissolveMaterial.uniforms.uMap.value = map;
+            meshDissolveMaterial.uniforms.uHasMap.value = 1;
+        }
+    }
+
+    function ensureMeshDissolveMaterial() {
+        if (meshDissolveMaterial) {
+            syncDissolveMap();
+            return meshDissolveMaterial;
+        }
+        var map = (meshBaseMaterial && meshBaseMaterial.map) || getWhiteTex();
+        var hasMap = !!(meshBaseMaterial && meshBaseMaterial.map);
+        meshDissolveMaterial = new THREE.ShaderMaterial({
+            transparent: true,
+            depthWrite: true,
+            side: THREE.DoubleSide,
+            toneMapped: false,
+            uniforms: {
+                uMap: { value: map },
+                uHasMap: { value: hasMap ? 1 : 0 },
+                uColor: { value: new THREE.Vector3(1, 1, 1) },
+                uOpacity: dissolveUniforms.opacity,
+                uDissolve: dissolveUniforms.uDissolve,
+                uEdgeWidth: dissolveUniforms.uEdgeWidth,
+                uNoiseFreq: dissolveUniforms.uNoiseFreq,
+            },
+            vertexShader: [
+                'varying vec2 vUv;',
+                'varying vec3 vPos;',
+                'varying vec3 vN;',
+                'void main() {',
+                '  vUv = uv;',
+                '  vPos = position;',
+                '  vN = normalize(normalMatrix * normal);',
+                '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
+                '}',
+            ].join('\n'),
+            fragmentShader: [
+                GLSL_VNOISE,
+                'uniform sampler2D uMap;',
+                'uniform float uHasMap;',
+                'uniform vec3 uColor;',
+                'uniform float uOpacity;',
+                'uniform float uDissolve;',
+                'uniform float uEdgeWidth;',
+                'uniform float uNoiseFreq;',
+                'varying vec2 vUv;',
+                'varying vec3 vPos;',
+                'varying vec3 vN;',
+                'void main() {',
+                '  vec4 tex = uHasMap > 0.5 ? texture2D(uMap, vUv) : vec4(1.0);',
+                '  vec3 col = uColor * tex.rgb;',
+                '  float lit = 0.62 + 0.38 * clamp(dot(normalize(vN), vec3(0.25, 0.82, 0.4)), 0.0, 1.0);',
+                '  col *= lit;',
+                '  float n1 = vnoise(vPos.xy * uNoiseFreq);',
+                '  float n2 = vnoise(vPos.yz * uNoiseFreq + vec2(17.2, 9.1));',
+                '  float n3 = vnoise(vPos.xz * uNoiseFreq + vec2(3.7, 28.4));',
+                '  float nHi = vnoise(vPos.xy * uNoiseFreq * 3.15 + vec2(4.0, 11.0));',
+                '  float n = mix((n1 + n2 + n3) / 3.0, nHi, 0.38);',
+                '  float ew = max(uEdgeWidth, 0.0001);',
+                '  if (uDissolve > 0.0005 && n < uDissolve - ew * 0.55) discard;',
+                '  float edge = 1.0 - clamp(abs(n - uDissolve) / ew, 0.0, 1.0);',
+                '  edge *= step(0.0005, uDissolve);',
+                '  col = mix(col, vec3(0.93, 0.89, 1.0), edge * 0.72);',
+                '  col += vec3(0.55, 0.48, 0.95) * edge * 0.32;',
+                '  gl_FragColor = vec4(col, uOpacity * tex.a);',
+                '}',
+            ].join('\n'),
+        });
+        return meshDissolveMaterial;
+    }
+
+    function useMeshDissolveMaterial() {
+        if (!targetMesh) return;
+        ensureMeshDissolveMaterial();
+        dissolveUniforms.opacity.value = 1;
+        targetMesh.material = meshDissolveMaterial;
+        meshDissolveMaterial.transparent = true;
+        meshDissolveMaterial.depthWrite = true;
+        targetMesh.visible = true;
+        targetMesh.renderOrder = 0;
+        if (points) points.renderOrder = 1;
+    }
+
+    function restoreMeshBaseMaterial() {
+        if (!targetMesh || !meshBaseMaterial) return;
+        targetMesh.material = meshBaseMaterial;
+        meshBaseMaterial.transparent = true;
+        meshBaseMaterial.depthWrite = false;
+        dissolveUniforms.uDissolve.value = 0;
+        dissolveUniforms.uPeel.value = 0;
     }
 
     function resetShaderExtras() {
@@ -592,6 +765,8 @@
         pointsMaterial.uniforms.uColorA.value.set(COL_DEFAULT.r, COL_DEFAULT.g, COL_DEFAULT.b);
         pointsMaterial.uniforms.uColorB.value.set(1, 1, 1);
         pointsMaterial.uniforms.uSweepColor.value.set(0.85, 0.95, 1.0);
+        if (pointsMaterial.uniforms.uSliceOn) pointsMaterial.uniforms.uSliceOn.value = 0;
+        if (pointsMaterial.uniforms.uSliceCut) pointsMaterial.uniforms.uSliceCut.value = -999;
         if (renderer && renderer.toneMappingExposure !== undefined) {
             renderer.toneMappingExposure = 1.2;
         }
@@ -662,6 +837,7 @@
         points.visible = true;
         resetShaderExtras();
         pointsMaterial.uniforms.uPointAlpha.value = 1;
+        restoreMeshBaseMaterial();
         setMeshOpacity(0);
         resetMeshXform();
         if (currentEffect === 'liuru') {
@@ -716,6 +892,8 @@
             pointsMaterial.uniforms.uPointSize.value = 0.006;
             pointsMaterial.uniforms.uPointAlpha.value = 0;
             setMeshOpacity(1);
+        } else if (currentEffect === 'edge-slice') {
+            beginEdgeSlice();
         } else {
             setSizeScale(0.85);
             pointsMaterial.uniforms.uPointSize.value = 0.006;
@@ -1035,6 +1213,119 @@
         }
         currentEffect = id;
         resetPhase();
+    }
+
+    function edgeSliceRange() {
+        var height = Math.max(0.8, sweepMaxY - sweepMinY);
+        return {
+            lo: sweepMinY + height * 0.01,
+            hi: sweepMaxY + height * 0.06,
+            rim: Math.max(height * 0.04, 0.07),
+            noise: Math.max(height * 0.025, 0.04),
+            height: height,
+        };
+    }
+
+    function beginEdgeSlice() {
+        setSizeScale(1);
+        points.geometry.attributes.position.array.set(originalPositions);
+        points.geometry.attributes.position.needsUpdate = true;
+        points.visible = true;
+        var h = Math.abs(sweepMaxY - sweepMinY);
+        var dimN = Math.min(modelMaxDim || 10, Math.max(h, 1));
+        var freq = 2.4 / Math.max(dimN * 0.14, 0.18);
+        dissolveUniforms.uNoiseFreq.value = freq;
+        dissolveUniforms.uDissolve.value = 0;
+        dissolveUniforms.uEdgeWidth.value = 0.12;
+        dissolveUniforms.uPeel.value = 0;
+        dissolveUniforms.opacity.value = 1;
+        useMeshDissolveMaterial();
+        var range = edgeSliceRange();
+        if (pointsMaterial) {
+            var u = pointsMaterial.uniforms;
+            u.uPointAlpha.value = 0;
+            u.uPointSize.value = 0.01;
+            u.uGlow.value = 1;
+            u.uRipple.value = 0;
+            u.uColorA.value.set(COL_HOUSE.r, COL_HOUSE.g, COL_HOUSE.b);
+            u.uAccent.value = 0;
+            u.uSliceOn.value = 1;
+            u.uSliceCut.value = range.lo;
+            u.uSliceRim.value = range.rim;
+            u.uSliceNoise.value = range.noise;
+            u.uSweepY.value = range.lo;
+            u.uSweepWidth.value = range.rim * 1.8;
+            u.uSweepStrength.value = 0.55;
+            u.uSweepBoost.value = 1.1;
+            u.uSweepColor.value.set(0.96, 0.9, 1.0);
+        }
+        if (renderer && typeof renderer.compile === 'function') {
+            try { renderer.compile(scene, camera); } catch (err) {
+                console.warn('[MingsePreview] dissolve compile', err);
+            }
+        }
+    }
+
+    function tickEdgeSlice() {
+        var t = phaseTime;
+        var holdS = 1.2;
+        var settleS = 1.8;
+        var dualS = Math.max(10, durationS() - holdS - settleS);
+        var range = edgeSliceRange();
+        var lo = range.lo;
+        var hi = range.hi;
+        var rim = range.rim;
+
+        if (t < holdS) {
+            useMeshDissolveMaterial();
+            dissolveUniforms.uDissolve.value = 0;
+            dissolveUniforms.opacity.value = 1;
+            targetMesh.visible = true;
+            if (pointsMaterial) {
+                pointsMaterial.uniforms.uPointAlpha.value = 0;
+                pointsMaterial.uniforms.uSliceOn.value = 1;
+                pointsMaterial.uniforms.uSliceCut.value = lo;
+                pointsMaterial.uniforms.uSweepY.value = lo;
+            }
+            return;
+        }
+
+        if (t < holdS + dualS) {
+            useMeshDissolveMaterial();
+            var u = (t - holdS) / dualS;
+            var tDiss = smootherstep(Math.min(1, u / 0.52));
+            dissolveUniforms.uDissolve.value = lerp(0, 1.06, tDiss);
+            dissolveUniforms.opacity.value = 1;
+            var sliceDelay = 0.30;
+            var tSlice = u <= sliceDelay ? 0 : (u - sliceDelay) / (1 - sliceDelay);
+            targetMesh.visible = tDiss < 0.995 || tSlice < 0.08;
+            var cut = lerp(lo, hi, tSlice);
+            if (pointsMaterial) {
+                var pu = pointsMaterial.uniforms;
+                pu.uPointAlpha.value = tSlice > 0.001 ? 1 : 0;
+                pu.uSliceOn.value = 1;
+                pu.uSliceCut.value = cut;
+                pu.uSliceRim.value = rim;
+                pu.uSliceNoise.value = range.noise;
+                pu.uSweepY.value = cut;
+                pu.uSweepWidth.value = rim * 1.8;
+                pu.uSweepStrength.value = 0.42 + (1 - tSlice) * 0.28;
+                pu.uSweepBoost.value = 1.05;
+                pu.uPointSize.value = lerp(0.01, 0.013, tSlice);
+            }
+            return;
+        }
+
+        restoreMeshBaseMaterial();
+        setMeshOpacity(0);
+        if (pointsMaterial) {
+            pointsMaterial.uniforms.uSliceOn.value = 0;
+            pointsMaterial.uniforms.uSliceCut.value = hi + rim;
+            pointsMaterial.uniforms.uPointSize.value = 0.012;
+            pointsMaterial.uniforms.uPointAlpha.value = 1;
+            pointsMaterial.uniforms.uSweepStrength.value = 0;
+        }
+        points.visible = true;
     }
 
     function tickMingse() {
@@ -1441,9 +1732,14 @@
     }
 
     function tickCurrent(delta) {
-        phaseTime += delta;
-        if (phaseTime >= durationS()) {
-            resetPhase();
+        var freezeT = parseFloat((global.location.search.match(/[?&]t=([\d.]+)/) || [])[1]);
+        if (!isNaN(freezeT)) {
+            phaseTime = Math.max(0, Math.min(freezeT, durationS() - 0.001));
+        } else {
+            phaseTime += delta;
+            if (phaseTime >= durationS()) {
+                resetPhase();
+            }
         }
         if (currentEffect === 'liuru') {
             tickLiuru();
@@ -1473,6 +1769,8 @@
             tickWave();
         } else if (currentEffect === 'reform') {
             tickReform();
+        } else if (currentEffect === 'edge-slice') {
+            tickEdgeSlice();
         } else {
             tickMingse();
         }
@@ -1493,6 +1791,26 @@
         renderer.render(scene, camera);
         rafId = global.requestAnimationFrame(animate);
     }
+
+    global.__mingseDbg = function () {
+        var mat = targetMesh && targetMesh.material;
+        return {
+            effect: currentEffect,
+            t: phaseTime,
+            meshVis: !!(targetMesh && targetMesh.visible),
+            matType: mat && mat.type,
+            dissolve: dissolveUniforms.uDissolve.value,
+            opacity: dissolveUniforms.opacity.value,
+            hasMap: meshDissolveMaterial && meshDissolveMaterial.uniforms && meshDissolveMaterial.uniforms.uHasMap.value,
+            mapReady: !!(meshBaseMaterial && meshBaseMaterial.map && meshBaseMaterial.map.image),
+            pointA: pointsMaterial && pointsMaterial.uniforms.uPointAlpha.value,
+            sliceOn: pointsMaterial && pointsMaterial.uniforms.uSliceOn.value,
+            sliceCut: pointsMaterial && pointsMaterial.uniforms.uSliceCut.value,
+            freq: dissolveUniforms.uNoiseFreq.value,
+            camDist: camera ? camera.position.length() : 0,
+            meshPos: targetMesh ? [targetMesh.position.x, targetMesh.position.y, targetMesh.position.z] : null,
+        };
+    };
 
     function start() {
         if (!global.ThreeRegistry) {

@@ -203,6 +203,7 @@
         return chain.then(function () {
             return fadeOutgoingToPath();
         }).then(function () {
+            if (global.PathResolutionHud) global.PathResolutionHud.show(pathId);
             global.SubtitleController.play(resolveSubtitles(stage));
             return runStageBody(stage);
         }).then(function () {
@@ -274,10 +275,12 @@
 
     function enterHouse(stage) {
         if (!stage.layers.houseModel) {
-            if (dom.houseLayer) dom.houseLayer.hidden = true;
+            if (dom.houseLayer) {
+                dom.houseLayer.hidden = true;
+                dom.houseLayer.style.visibility = '';
+            }
             return Promise.resolve();
         }
-        if (dom.houseLayer) dom.houseLayer.hidden = false;
         var opts = {
             durationMs: stage.durationMs || 5000,
             onMouseMove: crosshair ? function (x, y) { crosshair.updatePosition(x, y); } : null,
@@ -343,7 +346,8 @@
             var scriptsP = preloadAssignedPathScripts();
             return global.KarmaProgress.runFinalize(
                 stage.karmaDurationMs || 7000,
-                stage.karmaLabel || 'Karma calculation in progress...'
+                stage.karmaLabel || 'Karma calculation in progress...',
+                stage.karmaResolvedHoldMs
             ).then(function (result) {
                 karmaResult = result;
                 applyPathOverrideToKarma();
@@ -370,6 +374,9 @@
 
     function exitStage(stage, nextStage) {
         global.SubtitleController.hide();
+        if (stage && stage.key === 'six-paths-reveal' && global.PathResolutionHud) {
+            global.PathResolutionHud.hide();
+        }
         exitSpecialStage(stage);
         global.BlockingUI.clear();
         var goingToPath = nextStage && nextStage.layers && nextStage.layers.effect === 'assigned-path';

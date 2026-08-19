@@ -16,6 +16,31 @@
     var loaded = {};
     var r128Cached = null;
 
+    function addResourceHint(rel, url, asType) {
+        if (!url || !global.document) return;
+        var existing = global.document.querySelector('link[rel="' + rel + '"][href="' + url + '"]');
+        if (existing) return;
+        var link = global.document.createElement('link');
+        link.rel = rel;
+        link.href = url;
+        if (asType) link.as = asType;
+        global.document.head.appendChild(link);
+    }
+
+    function prefetchUrls(urls, asType) {
+        (urls || []).forEach(function (url) {
+            addResourceHint('preload', url, asType || 'script');
+        });
+    }
+
+    function prefetchR128() {
+        prefetchUrls(SCRIPT_URLS.r128, 'script');
+    }
+
+    function prefetchP5() {
+        prefetchUrls(SCRIPT_URLS.p5, 'script');
+    }
+
     function loadScript(src) {
         if (loaded[src]) return loaded[src];
         loaded[src] = new Promise(function (resolve, reject) {
@@ -132,13 +157,41 @@
         return global.THREE;
     }
 
+    var holdCount = 0;
+    var holdProfile = null;
+
+    function profileBlocksR128(profile) {
+        return profile === 'r74-spirit' || profile === 'r74-hyper' || profile === 'r76-love';
+    }
+
+    function acquireProfile(profile) {
+        holdCount += 1;
+        holdProfile = profile;
+        useProfileUnlocked(profile);
+    }
+
+    function releaseProfile() {
+        holdCount = Math.max(0, holdCount - 1);
+        if (holdCount === 0) holdProfile = null;
+    }
+
     function useR128() {
+        if (holdCount > 0 && profileBlocksR128(holdProfile)) return;
+        useR128Unlocked();
+    }
+
+    function useR128Unlocked() {
         if (global.__R128_THREE__) global.THREE = global.__R128_THREE__;
     }
 
     function useProfile(profile) {
+        if (holdCount > 0 && holdProfile && holdProfile !== profile) return;
+        useProfileUnlocked(profile);
+    }
+
+    function useProfileUnlocked(profile) {
         if (profile === 'r128' || profile === 'p5' || profile === 'dynamic') {
-            useR128();
+            useR128Unlocked();
             return;
         }
         if (profile === 'r74-spirit' && global.__R74_THREE_SPIRIT__) {
@@ -186,6 +239,10 @@
         ensureProfile: ensureProfile,
         useProfile: useProfile,
         useR128: useR128,
+        acquireProfile: acquireProfile,
+        releaseProfile: releaseProfile,
         cacheCurrentThree: cacheCurrentThree,
+        prefetchR128: prefetchR128,
+        prefetchP5: prefetchP5,
     };
 })(typeof window !== 'undefined' ? window : this);

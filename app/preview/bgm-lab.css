@@ -1,0 +1,241 @@
+.bgm-lab-page {
+    overflow: auto;
+    cursor: auto !important;
+    min-height: 100vh;
+    color: rgba(255, 255, 255, 0.9);
+    padding-bottom: 110px;
+}
+
+.bgm-lab-page *,
+.bgm-lab-page *::before,
+.bgm-lab-page *::after {
+    cursor: auto !important;
+}
+
+.bgm-lab-page .global-bg-video {
+    z-index: 0;
+    opacity: 0.42;
+}
+
+.bgm-vignette {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background:
+        linear-gradient(180deg, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.28) 18%, rgba(0, 0, 0, 0.72) 100%);
+}
+
+.bgm-header {
+    position: relative;
+    z-index: 3;
+    padding: 28px 28px 12px;
+    max-width: 1180px;
+}
+
+.bgm-kicker {
+    margin: 0 0 8px;
+    font-family: 'Pixelate', monospace, sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    opacity: 0.45;
+}
+
+.bgm-header h1 {
+    margin: 0;
+    font-family: 'SiteFont', serif;
+    font-size: clamp(1.6rem, 3.2vw, 2.3rem);
+    letter-spacing: 0.12em;
+    font-weight: 400;
+}
+
+.bgm-lead,
+.bgm-legal {
+    margin: 10px 0 0;
+    max-width: 68ch;
+    font-family: 'Pixelate', monospace, sans-serif;
+    font-size: 11px;
+    line-height: 1.55;
+    letter-spacing: 0.04em;
+    color: rgba(255, 255, 255, 0.62);
+}
+
+.bgm-legal code {
+    font-family: inherit;
+    color: #c4b5fd;
+}
+
+.bgm-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 18px;
+}
+
+.bgm-filters button,
+.bgm-drop,
+.bgm-play,
+.bgm-loop,
+.bgm-src {
+    border: 1px solid rgba(196, 181, 253, 0.28);
+    background: rgba(8, 10, 18, 0.55);
+    color: rgba(255, 255, 255, 0.82);
+    font-family: 'Pixelate', monospace, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    padding: 7px 12px;
+}
+
+.bgm-filters button.is-active {
+    background: rgba(139, 92, 246, 0.28);
+    border-color: rgba(196, 181, 253, 0.7);
+    color: #fff;
+}
+
+.bgm-drop {
+    display: inline-flex;
+    align-items: center;
+    margin-top: 14px;
+    cursor: pointer;
+}
+
+.bgm-drop input {
+    display: none;
+}
+
+.bgm-grid {
+    position: relative;
+    z-index: 3;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+    padding: 8px 28px 28px;
+    max-width: 1180px;
+}
+
+.bgm-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px 16px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(6, 8, 14, 0.62);
+    text-align: left;
+    color: inherit;
+}
+
+.bgm-card.is-playing {
+    border-color: rgba(196, 181, 253, 0.75);
+    box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.25);
+}
+
+.bgm-card-kind {
+    margin: 0;
+    font-family: 'Pixelate', monospace, sans-serif;
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(196, 181, 253, 0.75);
+}
+
+.bgm-card h2 {
+    margin: 0;
+    font-family: 'SiteFont', serif;
+    font-size: 1.05rem;
+    letter-spacing: 0.06em;
+    font-weight: 400;
+}
+
+.bgm-card p {
+    margin: 0;
+    font-family: 'Pixelate', monospace, sans-serif;
+    font-size: 10px;
+    line-height: 1.45;
+    letter-spacing: 0.04em;
+    color: rgba(255, 255, 255, 0.58);
+}
+
+.bgm-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.bgm-tags span {
+    font-family: 'Pixelate', monospace, sans-serif;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    padding: 3px 7px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.bgm-dock {
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    bottom: 14px;
+    z-index: 8;
+    display: grid;
+    grid-template-columns: auto minmax(120px, 1.2fr) minmax(140px, 1.6fr) auto auto auto auto;
+    gap: 10px 12px;
+    align-items: center;
+    padding: 12px 16px;
+    background: rgba(6, 8, 14, 0.88);
+    border: 1px solid rgba(196, 181, 253, 0.22);
+    backdrop-filter: blur(10px);
+}
+
+.bgm-dock-meta {
+    min-width: 0;
+}
+
+.bgm-now-title,
+.bgm-now-sub {
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bgm-now-title {
+    font-family: 'SiteFont', serif;
+    font-size: 15px;
+    letter-spacing: 0.04em;
+}
+
+.bgm-now-sub,
+.bgm-time,
+.bgm-vol {
+    font-family: 'Pixelate', monospace, sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.bgm-dock input[type="range"] {
+    width: 100%;
+    accent-color: #c4b5fd;
+}
+
+.bgm-loop.is-on {
+    border-color: rgba(196, 181, 253, 0.8);
+    color: #fff;
+}
+
+.bgm-src {
+    text-decoration: none;
+}
+
+@media (max-width: 900px) {
+    .bgm-dock {
+        grid-template-columns: auto 1fr auto;
+    }
+    .bgm-dock #bgmSeek,
+    .bgm-dock .bgm-vol,
+    .bgm-dock .bgm-src {
+        display: none;
+    }
+}

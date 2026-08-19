@@ -49,6 +49,9 @@
 
     function init(el) {
         stageEl = el;
+    }
+
+    function preloadFont() {
         waitForCnFont();
     }
 
@@ -156,6 +159,7 @@
 
     global.SutraController = {
         init: init,
+        preloadFont: preloadFont,
         enter: enter,
         exit: exit,
     };

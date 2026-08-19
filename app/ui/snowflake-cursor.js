@@ -1,5 +1,6 @@
 /**
- * 雪花拖尾效果 - 叠加在视频上，透明背景，白色发光粒子拖尾
+ * 雪花拖尾：光斑预烘焙到高分辨率贴图，避免每帧 createRadialGradient / shadowBlur
+ * 画布按设备像素比绘制，保持清晰
  */
 class SnowflakeCursor {
     constructor(containerId) {
@@ -9,7 +10,8 @@ class SnowflakeCursor {
         this.canvas = document.getElementById('snowflakeCanvas');
         if (!this.canvas) return;
 
-        this.ctx = this.canvas.getContext('2d');
+        this.ctx = this.canvas.getContext('2d', { alpha: true });
+        this.dpr = 1;
 
         this.x = 0;
         this.y = 0;
@@ -22,6 +24,7 @@ class SnowflakeCursor {
         this.trailInterval = 1;
         this.particlesPerPoint = 12;
         this.margin = 30;
+        this.sprite = this.makeSprite();
 
         this._onResize = () => this.resize();
         this.resize();
@@ -31,14 +34,35 @@ class SnowflakeCursor {
         window.addEventListener('resize', this._onResize);
     }
 
+    makeSprite() {
+        const size = 256;
+        const s = document.createElement('canvas');
+        s.width = size;
+        s.height = size;
+        const c = s.getContext('2d');
+        const cx = size / 2;
+        const g = c.createRadialGradient(cx, cx, 0, cx, cx, cx);
+        g.addColorStop(0, 'rgba(255, 255, 255, 1)');
+        g.addColorStop(0.28, 'rgba(255, 255, 255, 0.55)');
+        g.addColorStop(0.55, 'rgba(255, 255, 255, 0.18)');
+        g.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        c.fillStyle = g;
+        c.fillRect(0, 0, size, size);
+        return s;
+    }
+
     resize() {
         if (!this.container || !this.canvas || !this.ctx) return;
         const rect = this.container.getBoundingClientRect();
         this.width = rect.width;
         this.height = rect.height;
+        this.dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-        this.canvas.width = this.width;
-        this.canvas.height = this.height;
+        this.canvas.width = Math.max(1, Math.round(this.width * this.dpr));
+        this.canvas.height = Math.max(1, Math.round(this.height * this.dpr));
+        this.canvas.style.width = this.width + 'px';
+        this.canvas.style.height = this.height + 'px';
+        this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
 
         this.minX = this.margin;
         this.maxX = this.width - this.margin;
@@ -56,30 +80,19 @@ class SnowflakeCursor {
 
     drawParticleCluster(x, y, intensity, spread, size) {
         const count = Math.floor(this.particlesPerPoint * intensity) + 2;
+        const ctx = this.ctx;
+        const sprite = this.sprite;
 
         for (let i = 0; i < count; i++) {
             const angle = Math.random() * Math.PI * 2;
             const r = (Math.random() * 0.5 + 0.5) * spread;
             const px = x + Math.cos(angle) * r;
             const py = y + Math.sin(angle) * r;
-
-            const radius = (Math.random() * 0.5 + 0.5) * size;
-            const opacity = intensity * (0.4 + Math.random() * 0.6);
-
-            this.ctx.beginPath();
-            this.ctx.arc(px, py, radius, 0, Math.PI * 2);
-
-            const gradient = this.ctx.createRadialGradient(
-                px, py, 0,
-                px, py, radius * 2
-            );
-            gradient.addColorStop(0, `rgba(255, 255, 255, ${opacity})`);
-            gradient.addColorStop(0.5, `rgba(255, 255, 255, ${opacity * 0.4})`);
-            gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-
-            this.ctx.fillStyle = gradient;
-            this.ctx.fill();
+            const dim = (Math.random() * 0.5 + 0.5) * size * 4.2;
+            ctx.globalAlpha = intensity * (0.4 + Math.random() * 0.6);
+            ctx.drawImage(sprite, px - dim / 2, py - dim / 2, dim, dim);
         }
+        ctx.globalAlpha = 1;
     }
 
     update() {
@@ -119,7 +132,6 @@ class SnowflakeCursor {
         }
     }
 
-    /** 判断某点是否在雪花（头部或拖尾）附近，用于点击检测 */
     isPointNearSnowflake(px, py) {
         const hitRadius = 50;
         const r2 = hitRadius * hitRadius;
@@ -133,7 +145,7 @@ class SnowflakeCursor {
     }
 
     draw() {
-        // 透明清除，露出下层视频
+        this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
         this.ctx.clearRect(0, 0, this.width, this.height);
 
         const len = this.trail.length;
@@ -142,19 +154,16 @@ class SnowflakeCursor {
         for (let i = len - 1; i >= 0; i--) {
             const t = this.trail[i];
             const progress = 1 - i / len;
-
             const intensity = 0.15 + progress * 0.85;
             const spread = 10 + (1 - progress) * 28;
             const size = 1.2 + progress * 2.2;
-
             this.drawParticleCluster(t.x, t.y, intensity, spread, size);
         }
 
-        this.ctx.save();
-        this.ctx.shadowColor = 'rgba(255, 255, 255, 0.9)';
-        this.ctx.shadowBlur = 20;
+        this.ctx.globalAlpha = 0.55;
+        this.ctx.drawImage(this.sprite, this.x - 22, this.y - 22, 44, 44);
+        this.ctx.globalAlpha = 1;
         this.drawParticleCluster(this.x, this.y, 1, 12, 3);
-        this.ctx.restore();
     }
 
     animate() {
@@ -176,5 +185,6 @@ class SnowflakeCursor {
         this.ctx = null;
         this.canvas = null;
         this.container = null;
+        this.sprite = null;
     }
 }

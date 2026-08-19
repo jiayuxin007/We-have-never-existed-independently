@@ -10,6 +10,8 @@
     var controls = null;
     var modelRoot = null;
     var targetMesh = null;
+    var meshBaseMaterial = null;
+    var extraHouseMeshes = [];
     var points = null;
     var pointsMaterial = null;
     var originalPositions = null;
@@ -17,6 +19,13 @@
     var fadeDelay = null;
     var fadeInvMat = null;
     var fadeUp = null;
+    var fadeSnapX = null;
+    var fadeSnapY = null;
+    var fadeSnapZ = null;
+    var fadePeeling = null;
+    var fadeFromPhase = false;
+    var phaseTime = 0;
+    var phaseAmp = 0;
     var pointCount = 0;
 
     var rafId = 0;
@@ -41,12 +50,16 @@
     var liuruOverlay = null;
     var liuruComplete = false;
     var liuruPointer = { down: false, x: 0, y: 0 };
+    var cloudShocks = null;
+    var cloudShockSlot = 0;
+    var cloudPickVec = null;
     var mouseNDC = { x: -2, y: -2 };
     var mouseWorld = null;
     var shouKind = 'sukha';
     var shouContact = { x: 0, y: 0, z: 0 };
     var sweepMinY = -2;
     var sweepMaxY = 2;
+    var holoPhase = 0;
     var COL_HOUSE = 0x8B5CF6;
     var AI_FORM_S = 6.5;
     var AI_CAM_S = 5.5;
@@ -91,14 +104,42 @@
 
     /** 识：按老项目开场，一点 → 完整贴图模型（2.4s），随后保持实体慢转 */
     var INTRO_EXPAND_S = 2.4;
-    /** 名色：先溶成点云，再走旧项目 sin 拉扯，最后慢慢收成稳定房屋点云 */
-    var MINGSE_DISSOLVE_S = 2.4;
-    var MINGSE_SETTLE_S = 2.5;
+    /** 名色：贴图溶边消失 + 点云切片显现，再收成稳定房屋点云 */
+    var MINGSE_HOLD_S = 0.8;
+    var MINGSE_DUAL_S = 6.4;
+    var MINGSE_SETTLE_S = 1.0;
     var MINGSE_PULL_AMP = 0.08;
     var MINGSE_RESTORE = 0.015;
+    var GLSL_VNOISE = [
+        'float hash21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }',
+        'float vnoise(vec2 p) {',
+        '  vec2 i = floor(p);',
+        '  vec2 f = fract(p);',
+        '  vec2 u = f * f * (3.0 - 2.0 * f);',
+        '  return mix(mix(hash21(i), hash21(i + vec2(1.0, 0.0)), u.x), mix(hash21(i + vec2(0.0, 1.0)), hash21(i + vec2(1.0, 1.0)), u.x), u.y);',
+        '}',
+        'float houseStripe(vec3 p, float freq) {',
+        '  float f = max(freq, 0.08) * 10.0;',
+        '  float wobble = vnoise(vec2(p.x * freq * 0.85 + 2.4, p.z * freq * 0.85 + 7.1));',
+        '  float bands = 0.5 + 0.5 * sin(p.y * f + wobble * 1.65);',
+        '  float grain = vnoise(vec2(p.y * f * 0.35, wobble * 3.0));',
+        '  return clamp(mix(bands, grain, 0.18), 0.0, 1.0);',
+        '}',
+    ].join('\n');
+    var dissolveUniforms = {
+        uDissolve: { value: 0 },
+        uEdgeWidth: { value: 0.12 },
+        uSliceCut: { value: -999 },
+        uSliceMesh: { value: 0 },
+        uSliceSoft: { value: 0.25 },
+        uNoiseFreq: { value: 0.4 },
+        uPeel: { value: 0 },
+        uOpacity: { value: 1 },
+    };
 
     /** 与老项目 model-morph-32s-embed 一致 */
     var MODEL_ROTATE_Y = 0.0008;
+    var MODEL_YAW0 = Math.PI;
     /** 展开完成后模型整体呼吸缩放（±幅度，sin 周期） */
     var BREATH_SPEED = 0.5;
     var BREATH_AMPLITUDE = 0.035;
@@ -109,6 +150,11 @@
 
     function easeInOut(t) {
         return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+    }
+
+    function smootherstep(t) {
+        t = Math.min(1, Math.max(0, t));
+        return t * t * t * (t * (t * 6 - 15) + 10);
     }
 
     function easeOut(t) {
@@ -141,6 +187,24 @@
     var HOUSE_MODEL_LOADER_VERSION = 26;
     var gpuWarmed = false;
     var TEXTURE_MAX = 4096;
+    var prefetchPromise = null;
+
+    function prefetchModel() {
+        if (prefetchPromise) return prefetchPromise;
+        var urls = buildModelUrls();
+        var url = urls && urls[0];
+        if (!url || !global.document) {
+            prefetchPromise = Promise.resolve();
+            return prefetchPromise;
+        }
+        var link = global.document.createElement('link');
+        link.rel = 'prefetch';
+        link.as = 'fetch';
+        link.href = url;
+        global.document.head.appendChild(link);
+        prefetchPromise = Promise.resolve();
+        return prefetchPromise;
+    }
 
     function loadModelWithFallback(urls) {
         return new Promise(function (resolve, reject) {
@@ -204,16 +268,41 @@
         return Promise.resolve(applyImage(canvas));
     }
 
+    function paintBlankHouseFrame() {
+        if (!renderer || !scene || !camera) return;
+        syncMeshMaterialOpacity(0);
+        if (points) points.visible = false;
+        if (pointsMaterial && pointsMaterial.uniforms.uPointAlpha) {
+            pointsMaterial.uniforms.uPointAlpha.value = 0;
+        }
+        renderer.setClearColor(0x000000, 0);
+        renderer.clear(true, true, true);
+        renderer.render(scene, camera);
+    }
+
     function warmupGpu() {
         if (gpuWarmed || !renderer || !scene || !camera || !targetMesh) return;
-        targetMesh.visible = true;
+        syncMeshMaterialOpacity(1);
         try {
             if (typeof renderer.compile === 'function') renderer.compile(scene, camera);
             renderer.render(scene, camera);
         } catch (err) {
             console.warn('[HouseModel] gpu warmup', err);
         }
+        paintBlankHouseFrame();
         gpuWarmed = true;
+    }
+
+    function coverHouseLayer() {
+        if (!containerEl) return;
+        containerEl.hidden = false;
+        containerEl.style.visibility = 'hidden';
+    }
+
+    function revealHouseLayer() {
+        if (!containerEl) return;
+        containerEl.hidden = false;
+        containerEl.style.visibility = '';
     }
 
     function showLoading() {
@@ -233,6 +322,7 @@
         clock = new THREE.Clock();
 
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        if (renderer.debug) renderer.debug.checkShaderErrors = true;
         renderer.setClearColor(0x000000, 0);
         renderer.setPixelRatio(Math.min(global.devicePixelRatio || 1, 2));
         if (renderer.outputEncoding !== undefined) {
@@ -246,10 +336,13 @@
         containerEl.appendChild(renderer.domElement);
 
         camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
-        scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-        var dir = new THREE.DirectionalLight(0xffffff, 1.0);
-        dir.position.set(5, 5, 5);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+        var dir = new THREE.DirectionalLight(0xffffff, 0.95);
+        dir.position.set(5, 8, 6);
         scene.add(dir);
+        var fill = new THREE.DirectionalLight(0xc8d4ff, 0.28);
+        fill.position.set(-4, 2, -3);
+        scene.add(fill);
 
         controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
@@ -274,6 +367,8 @@
             modelRoot = null;
         }
         targetMesh = null;
+        meshBaseMaterial = null;
+        extraHouseMeshes = [];
         points = null;
         originalPositions = null;
 
@@ -282,25 +377,27 @@
         modelRoot.add(gltf.scene);
 
         gltf.scene.traverse(function (child) {
-            if (child.isMesh && !targetMesh) {
+            if (!child.isMesh) return;
+            var src = firstGltfMaterial(child.material);
+            var mat = cloneHouseLookMaterial(src, 0);
+            child.material = mat;
+            attachDissolveToMaterial(mat);
+            child.frustumCulled = false;
+            child.visible = false;
+            if (!targetMesh) {
                 targetMesh = child;
-                var mat = child.material;
-                child.material = new THREE.MeshStandardMaterial({
-                    color: mat.color,
-                    map: mat.map,
-                    roughness: mat.roughness,
-                    metalness: mat.metalness,
-                    transparent: true,
-                    opacity: 0,
-                    depthWrite: false,
-                });
-                targetMesh.frustumCulled = false;
+                meshBaseMaterial = mat;
+            } else {
+                extraHouseMeshes.push(child);
             }
         });
 
         if (!targetMesh) throw new Error('No mesh in GLB');
 
         var geom = targetMesh.geometry;
+        if (!geom.attributes.uv) {
+            geom.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(geom.attributes.position.count * 2), 2));
+        }
         var pos = geom.attributes.position;
         originalPositions = new Float32Array(pos.array.length);
         originalPositions.set(pos.array);
@@ -360,6 +457,18 @@
                 uL3: { value: 0.0 },
                 uL4: { value: 0.0 },
                 uL5: { value: 0.0 },
+                uSliceOn: { value: 0 },
+                uSliceCut: { value: -999 },
+                uSliceRim: { value: 0.12 },
+                uSliceNoise: { value: 0 },
+                uDissolve: { value: 0 },
+                uNoiseFreq: { value: 0.4 },
+                uPeelAmp: { value: 0.08 },
+                uShockKick: { value: 0.22 },
+                uHoloOn: { value: 0 },
+                uHoloY: { value: 0 },
+                uHoloWidth: { value: 0.18 },
+                uHoloKick: { value: 0.04 },
             },
             vertexShader: [
                 'attribute float aSizeScale;',
@@ -375,6 +484,19 @@
                 'uniform float uSweepBoost;',
                 'uniform float uWaveSpeed;',
                 'uniform float uWaveWidth;',
+                'uniform float uSliceOn;',
+                'uniform float uSliceCut;',
+                'uniform float uSliceRim;',
+                'uniform float uSliceNoise;',
+                'uniform float uDissolve;',
+                'uniform float uNoiseFreq;',
+                'uniform float uPeelAmp;',
+                'uniform float uShockKick;',
+                'uniform float uTime;',
+                'uniform float uHoloOn;',
+                'uniform float uHoloY;',
+                'uniform float uHoloWidth;',
+                'uniform float uHoloKick;',
                 'uniform vec3 uW0; uniform vec3 uW1; uniform vec3 uW2;',
                 'uniform vec3 uW3; uniform vec3 uW4; uniform vec3 uW5;',
                 'uniform float uA0; uniform float uA1; uniform float uA2;',
@@ -385,6 +507,8 @@
                 'varying float vSweep;',
                 'varying float vReveal;',
                 'varying float vRipple;',
+                'varying float vHolo;',
+                GLSL_VNOISE,
                 'float bandOf(vec3 pos, vec3 origin, float age) {',
                 '  float dist = length(pos - origin);',
                 '  float radius = age * uWaveSpeed;',
@@ -401,24 +525,59 @@
                 '}',
                 'void main() {',
                 '  if (uPointAlpha < 0.001 || aSizeScale < 0.02) { gl_PointSize = 0.0; gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }',
-                '  vec4 world = modelMatrix * vec4(position, 1.0);',
-                '  vec4 mv = modelViewMatrix * vec4(position, 1.0);',
+                '  vec3 pos = position;',
+                '  float edge = 0.0;',
+                '  float sliceRim = 0.0;',
+                '  float sliceVis = 1.0;',
+                '  if (uSliceOn > 0.5) {',
+                '    vec4 world0 = modelMatrix * vec4(position, 1.0);',
+                '    float nCut = (vnoise(vec2(position.x * 0.22 + 1.7, position.z * 0.22)) - 0.5) * uSliceNoise;',
+                '    float d = (uSliceCut + nCut) - world0.y;',
+                '    if (d < 0.0) { gl_PointSize = 0.0; gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }',
+                '    sliceVis = 1.0;',
+                '    sliceRim = 1.0 - clamp(d / max(uSliceRim, 0.0001), 0.0, 1.0);',
+                '  }',
+                '  float shock = bandOf(pos, uW0, uA0) + bandOf(pos, uW1, uA1) + bandOf(pos, uW2, uA2);',
+                '  shock += bandOf(pos, uW3, uA3) + bandOf(pos, uW4, uA4) + bandOf(pos, uW5, uA5);',
+                '  vec3 kick = vec3(0.0);',
+                '  kick += bandOf(pos, uW0, uA0) * normalize(pos - uW0 + vec3(0.0008, 0.0, 0.0));',
+                '  kick += bandOf(pos, uW1, uA1) * normalize(pos - uW1 + vec3(0.0008, 0.0, 0.0));',
+                '  kick += bandOf(pos, uW2, uA2) * normalize(pos - uW2 + vec3(0.0008, 0.0, 0.0));',
+                '  kick += bandOf(pos, uW3, uA3) * normalize(pos - uW3 + vec3(0.0008, 0.0, 0.0));',
+                '  kick += bandOf(pos, uW4, uA4) * normalize(pos - uW4 + vec3(0.0008, 0.0, 0.0));',
+                '  kick += bandOf(pos, uW5, uA5) * normalize(pos - uW5 + vec3(0.0008, 0.0, 0.0));',
+                '  pos += kick * uShockKick;',
+                '  vec4 worldPre = modelMatrix * vec4(pos, 1.0);',
+                '  float holoBand = 0.0;',
+                '  float holoCore = 0.0;',
+                '  if (uHoloOn > 0.5) {',
+                '    float holoDist = abs(worldPre.y - uHoloY);',
+                '    holoBand = 1.0 - smoothstep(0.0, uHoloWidth, holoDist);',
+                '    holoCore = 1.0 - smoothstep(0.0, uHoloWidth * 0.28, holoDist);',
+                '    float n = vnoise(vec2(pos.x * 6.0 + pos.z * 2.0, uTime * 5.5));',
+                '    float n2 = vnoise(vec2(pos.z * 5.0, uTime * 3.2 + 1.7));',
+                '    float jag = holoBand * holoBand;',
+                '    pos.x += (n - 0.5) * uHoloKick * jag;',
+                '    pos.z += (n2 - 0.5) * uHoloKick * 0.55 * jag;',
+                '  }',
+                '  vec4 world = modelMatrix * vec4(pos, 1.0);',
+                '  vec4 mv = modelViewMatrix * vec4(pos, 1.0);',
                 '  float dist = max(length(mv.xyz), 0.001);',
-                '  float shock = bandOf(position, uW0, uA0) + bandOf(position, uW1, uA1) + bandOf(position, uW2, uA2);',
-                '  shock += bandOf(position, uW3, uA3) + bandOf(position, uW4, uA4) + bandOf(position, uW5, uA5);',
-                '  float reveal = revealOf(position, uW0, uA0, uL0) + revealOf(position, uW1, uA1, uL1) + revealOf(position, uW2, uA2, uL2);',
-                '  reveal += revealOf(position, uW3, uA3, uL3) + revealOf(position, uW4, uA4, uL4) + revealOf(position, uW5, uA5, uL5);',
+                '  float reveal = revealOf(pos, uW0, uA0, uL0) + revealOf(pos, uW1, uA1, uL1) + revealOf(pos, uW2, uA2, uL2);',
+                '  reveal += revealOf(pos, uW3, uA3, uL3) + revealOf(pos, uW4, uA4, uL4) + revealOf(pos, uW5, uA5, uL5);',
                 '  float mouseDist = length(world.xyz - uMouse);',
                 '  float rippleHalo = 1.0 - smoothstep(uMouseRadius * 0.12, uMouseRadius, mouseDist);',
                 '  float rippleCore = 1.0 - smoothstep(0.0, uMouseRadius * 0.3, mouseDist);',
                 '  float ripple = min(1.0, rippleHalo * 0.72 + rippleCore) * uRipple;',
                 '  float sweepBand = 1.0 - smoothstep(0.0, uSweepWidth, abs(world.y - uSweepY));',
-                '  gl_PointSize = uPointSize * (300.0 / dist) * aSizeScale * (1.0 + shock * 2.4 + reveal * 0.55 + ripple * 1.15 + sweepBand * 2.2 * uSweepBoost + uBloom * 1.85);',
+                '  gl_PointSize = uPointSize * (300.0 / dist) * aSizeScale * sliceVis * (1.0 + shock * 2.4 + reveal * 0.55 + ripple * 1.15 + sweepBand * 2.2 * uSweepBoost + holoBand * 3.4 + holoCore * 2.8 + uBloom * 1.85 + sliceRim * 2.4 + edge * 0.9);',
                 '  gl_Position = projectionMatrix * mv;',
-                '  vGlow = uGlow + shock * 3.4 + reveal * 1.6 + ripple * 7.2 + sweepBand * 3.2 * uSweepBoost + uBloom * 1.45;',
-                '  vSweep = max(max(shock, ripple), sweepBand);',
+                '  if (uSliceOn > 0.5) gl_Position.z -= 0.006 * gl_Position.w;',
+                '  vGlow = uGlow + shock * 3.4 + reveal * 1.6 + ripple * 7.2 + sweepBand * 2.2 * uSweepBoost + holoBand * 4.2 + holoCore * 3.6 + uBloom * 1.45 + sliceRim * 1.8 + edge * 1.15;',
+                '  vSweep = max(max(shock, ripple), max(sweepBand, sliceRim));',
                 '  vReveal = reveal;',
                 '  vRipple = ripple;',
+                '  vHolo = max(holoBand, holoCore);',
                 '}',
             ].join('\n'),
             fragmentShader: [
@@ -432,6 +591,7 @@
                 'varying float vSweep;',
                 'varying float vReveal;',
                 'varying float vRipple;',
+                'varying float vHolo;',
                 'void main() {',
                 '  if (uPointAlpha < 0.001) discard;',
                 '  float d = length(gl_PointCoord - 0.5) * 2.0;',
@@ -440,6 +600,8 @@
                 '  vec3 col = mix(uColor, uColorB, uAccent);',
                 '  col = mix(col, uSweepColor, vSweep * uSweepStrength);',
                 '  col = mix(col, vec3(1.0), vRipple * 0.68);',
+                '  col = mix(col, vec3(0.72, 0.94, 1.0), vHolo * 0.88);',
+                '  a *= 1.0 + vHolo * 1.35;',
                 '  gl_FragColor = vec4(col, a);',
                 '}',
             ].join('\n'),
@@ -454,8 +616,10 @@
         var center = new THREE.Vector3();
         box.getCenter(center);
         modelRoot.position.sub(center);
+        modelRoot.rotation.y = MODEL_YAW0;
         modelRootBaseY = modelRoot.position.y;
 
+        box.setFromObject(modelRoot);
         var size = new THREE.Vector3();
         box.getSize(size);
         var maxDim = Math.max(size.x, size.y, size.z);
@@ -482,15 +646,310 @@
             metalness: metalness != null ? metalness : 0,
             transparent: true,
             opacity: opacity,
-            depthWrite: false,
+            depthWrite: opacity >= 0.7,
         });
     }
 
+    function firstGltfMaterial(mat) {
+        if (Array.isArray(mat)) return mat[0] || null;
+        return mat || null;
+    }
+
+    function polishHouseTexture(tex) {
+        if (!tex || !renderer) return;
+        var maxA = renderer.capabilities && renderer.capabilities.getMaxAnisotropy
+            ? renderer.capabilities.getMaxAnisotropy()
+            : 1;
+        tex.anisotropy = Math.min(8, maxA || 1);
+        tex.generateMipmaps = true;
+        if (THREE.LinearMipmapLinearFilter) tex.minFilter = THREE.LinearMipmapLinearFilter;
+        if (THREE.LinearFilter) tex.magFilter = THREE.LinearFilter;
+        tex.needsUpdate = true;
+    }
+
+    function polishHouseMaterialMaps(mat) {
+        if (!mat) return;
+        if (Array.isArray(mat)) {
+            var i;
+            for (i = 0; i < mat.length; i++) polishHouseMaterialMaps(mat[i]);
+            return;
+        }
+        polishHouseTexture(mat.map);
+        polishHouseTexture(mat.normalMap);
+        polishHouseTexture(mat.roughnessMap);
+        polishHouseTexture(mat.metalnessMap);
+        polishHouseTexture(mat.aoMap);
+        polishHouseTexture(mat.emissiveMap);
+        polishHouseTexture(mat.bumpMap);
+        polishHouseTexture(mat.lightMap);
+        polishHouseTexture(mat.alphaMap);
+    }
+
+    function cloneHouseLookMaterial(src, opacity) {
+        src = src || {};
+        var dst = new THREE.MeshStandardMaterial({
+            color: src.color ? src.color.clone() : new THREE.Color(0xffffff),
+            map: src.map || null,
+            roughness: src.roughness != null ? src.roughness : 0.5,
+            metalness: src.metalness != null ? src.metalness : 0,
+            roughnessMap: src.roughnessMap || null,
+            metalnessMap: src.metalnessMap || null,
+            normalMap: src.normalMap || null,
+            aoMap: src.aoMap || null,
+            aoMapIntensity: src.aoMapIntensity != null ? src.aoMapIntensity : 1,
+            emissiveMap: src.emissiveMap || null,
+            emissiveIntensity: src.emissiveIntensity != null ? src.emissiveIntensity : 0,
+            bumpMap: src.bumpMap || null,
+            bumpScale: src.bumpScale != null ? src.bumpScale : 1,
+            envMap: src.envMap || null,
+            envMapIntensity: src.envMapIntensity != null ? src.envMapIntensity : 1,
+            lightMap: src.lightMap || null,
+            lightMapIntensity: src.lightMapIntensity != null ? src.lightMapIntensity : 1,
+            alphaMap: src.alphaMap || null,
+            side: src.side != null ? src.side : THREE.FrontSide,
+            transparent: true,
+            opacity: opacity,
+            depthWrite: opacity >= 0.7,
+        });
+        if (src.normalScale) dst.normalScale.copy(src.normalScale);
+        if (src.emissive) dst.emissive.copy(src.emissive);
+        polishHouseMaterialMaps(dst);
+        return dst;
+    }
+
+    function setMatOpacity(mat, o) {
+        if (!mat) return;
+        if (Array.isArray(mat)) {
+            var i;
+            for (i = 0; i < mat.length; i++) setMatOpacity(mat[i], o);
+            return;
+        }
+        mat.opacity = o;
+        mat.transparent = true;
+        mat.depthWrite = o >= 0.65;
+    }
+
     function syncMeshMaterialOpacity(opacity) {
-        if (!targetMesh) return;
-        targetMesh.material.opacity = Math.max(0, Math.min(1, opacity));
-        targetMesh.material.transparent = true;
-        targetMesh.material.depthWrite = false;
+        var o = Math.max(0, Math.min(1, opacity));
+        var show = o > 0.01;
+        if (targetMesh) {
+            setMatOpacity(targetMesh.material, o);
+            targetMesh.visible = show;
+        }
+        var i;
+        for (i = 0; i < extraHouseMeshes.length; i++) {
+            setMatOpacity(extraHouseMeshes[i].material, o);
+            extraHouseMeshes[i].visible = show;
+        }
+    }
+
+    function attachDissolveToMaterial(mat) {
+        if (!mat || mat.userData.mingseDissolve) return;
+        mat.userData.mingseDissolve = true;
+        mat.onBeforeCompile = function (shader) {
+            shader.uniforms.uDissolve = dissolveUniforms.uDissolve;
+            shader.uniforms.uEdgeWidth = dissolveUniforms.uEdgeWidth;
+            shader.uniforms.uNoiseFreq = dissolveUniforms.uNoiseFreq;
+            shader.vertexShader = 'varying vec3 vDissPos;\n' + shader.vertexShader;
+            shader.vertexShader = shader.vertexShader.replace(
+                '#include <begin_vertex>',
+                '#include <begin_vertex>\n vDissPos = transformed;'
+            );
+            shader.fragmentShader = [
+                'varying vec3 vDissPos;',
+                'uniform float uDissolve;',
+                'uniform float uEdgeWidth;',
+                'uniform float uNoiseFreq;',
+                GLSL_VNOISE,
+                shader.fragmentShader
+            ].join('\n');
+            shader.fragmentShader = shader.fragmentShader.replace(
+                '#include <map_fragment>',
+                [
+                    '#include <map_fragment>',
+                    'float n = houseStripe(vDissPos, uNoiseFreq);',
+                    'float ew = max(uEdgeWidth, 0.0001);',
+                    'if (uDissolve > 0.001 && n < uDissolve - ew * 0.55) discard;',
+                    'float edge = 1.0 - clamp(abs(n - uDissolve) / ew, 0.0, 1.0);',
+                    'edge *= step(0.001, uDissolve);',
+                    'diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.93, 0.89, 1.0), edge * 0.55);',
+                    'diffuseColor.rgb += vec3(0.55, 0.48, 0.95) * edge * 0.22;',
+                ].join('\n')
+            );
+        };
+        mat.customProgramCacheKey = function () {
+            return 'mingse-hstripe-dissolve-v1';
+        };
+    }
+
+    function useMeshDissolveMaterial() {
+        if (!targetMesh || !meshBaseMaterial) return;
+        targetMesh.material = meshBaseMaterial;
+        meshBaseMaterial.transparent = true;
+        meshBaseMaterial.depthWrite = meshBaseMaterial.opacity >= 0.65;
+        targetMesh.visible = true;
+    }
+
+    function restoreMeshBaseMaterial() {
+        if (!targetMesh || !meshBaseMaterial) return;
+        targetMesh.material = meshBaseMaterial;
+        meshBaseMaterial.transparent = true;
+        meshBaseMaterial.depthWrite = meshBaseMaterial.opacity >= 0.65;
+        dissolveUniforms.uDissolve.value = 0;
+    }
+
+    function mingseNoiseFreq() {
+        var h = Math.abs((sweepMaxY != null ? sweepMaxY : 1) - (sweepMinY != null ? sweepMinY : 0));
+        var dim = Math.min(houseMaxDim || 10, Math.max(h, 1));
+        return 2.4 / Math.max(dim * 0.14, 0.18);
+    }
+
+    function mingseSliceRange() {
+        var boxYMin = sweepMinY;
+        var boxYMax = sweepMaxY;
+        if (points) {
+            points.updateMatrixWorld(true);
+            var box = new THREE.Box3().setFromObject(points);
+            if (isFinite(box.min.y) && isFinite(box.max.y) && box.max.y > box.min.y) {
+                boxYMin = box.min.y;
+                boxYMax = box.max.y;
+            }
+        }
+        var height = Math.max(0.8, boxYMax - boxYMin);
+        return {
+            lo: boxYMin + height * 0.01,
+            hi: boxYMax + height * 0.06,
+            rim: Math.max(height * 0.04, 0.07),
+            noise: Math.max(height * 0.025, 0.04),
+        };
+    }
+
+    function clearMingseDual() {
+        dissolveUniforms.uDissolve.value = 0;
+        dissolveUniforms.uSliceCut.value = -999;
+        dissolveUniforms.uSliceMesh.value = 0;
+        dissolveUniforms.uPeel.value = 0;
+        if (targetMesh && meshBaseMaterial) {
+            restoreMeshBaseMaterial();
+        } else if (targetMesh && targetMesh.material) {
+            targetMesh.material.depthWrite = false;
+        }
+        if (!pointsMaterial || !pointsMaterial.uniforms) return;
+        var u = pointsMaterial.uniforms;
+        if (u.uSliceOn) u.uSliceOn.value = 0;
+        if (u.uSliceCut) u.uSliceCut.value = -999;
+        if (u.uDissolve) u.uDissolve.value = 0;
+        if (u.uPeelAmp) u.uPeelAmp.value = 0.18;
+        if (u.uSweepStrength) u.uSweepStrength.value = 0;
+        if (u.uSweepY) u.uSweepY.value = -10;
+        if (u.uSweepBoost) u.uSweepBoost.value = 1;
+        if (u.uSweepColor) u.uSweepColor.value.set(0.325, 0.388, 0.349);
+    }
+
+    function beginMingseDual() {
+        if (!expandComplete) forceExpandComplete();
+        pointsReady = false;
+        setPointPositionsToOriginal();
+        setSizeScale(1);
+        if (points) {
+            points.position.set(0, 0, 0);
+            points.scale.set(1, 1, 1);
+            points.rotation.set(Math.PI / 2, 0, 0);
+        }
+        var freq = mingseNoiseFreq();
+        dissolveUniforms.uNoiseFreq.value = freq;
+        dissolveUniforms.uDissolve.value = 0;
+        dissolveUniforms.uEdgeWidth.value = 0.12;
+        dissolveUniforms.uSliceMesh.value = 0;
+        dissolveUniforms.uPeel.value = 0;
+        dissolveUniforms.uOpacity.value = 1;
+        var range = mingseSliceRange();
+        dissolveUniforms.uSliceCut.value = range.lo;
+        dissolveUniforms.uSliceSoft.value = range.rim * 2.4;
+        if (targetMesh) {
+            restoreMeshBaseMaterial();
+            targetMesh.visible = true;
+            syncMeshMaterialOpacity(1);
+        }
+        if (points) points.visible = true;
+        if (pointsMaterial) {
+            var u = pointsMaterial.uniforms;
+            setPointColorHex(COL_HOUSE);
+            u.uPointAlpha.value = 0;
+            u.uPointSize.value = 0.01;
+            u.uGlow.value = 1;
+            if (u.uAccent) u.uAccent.value = 0;
+            if (u.uRipple) u.uRipple.value = 0;
+            if (u.uSliceOn) u.uSliceOn.value = 1;
+            if (u.uSliceCut) u.uSliceCut.value = range.lo;
+            if (u.uSliceRim) u.uSliceRim.value = range.rim;
+            if (u.uSliceNoise) u.uSliceNoise.value = range.noise;
+            if (u.uDissolve) u.uDissolve.value = 0;
+            if (u.uNoiseFreq) u.uNoiseFreq.value = freq;
+            if (u.uPeelAmp) u.uPeelAmp.value = 0;
+            if (u.uSweepY) u.uSweepY.value = range.lo;
+            if (u.uSweepWidth) u.uSweepWidth.value = range.rim * 1.8;
+            if (u.uSweepStrength) u.uSweepStrength.value = 0.55;
+            if (u.uSweepBoost) u.uSweepBoost.value = 1.05;
+            if (u.uSweepColor) u.uSweepColor.value.set(0.96, 0.9, 1.0);
+        }
+        if (modelRoot) modelRoot.scale.set(1, 1, 1);
+    }
+
+    function applyMingseDual(u) {
+        u = Math.min(1, Math.max(0, u));
+        var tDiss = smootherstep(Math.min(1, u / 0.36));
+        var sliceDelay = 0.22;
+        var tSlice = u <= sliceDelay ? 0 : (u - sliceDelay) / (1 - sliceDelay);
+        var range = mingseSliceRange();
+        var cut = lerp(range.lo, range.hi, tSlice);
+        var dissolve = lerp(0, 1.08, tDiss);
+        dissolveUniforms.uDissolve.value = dissolve;
+        dissolveUniforms.uSliceCut.value = cut;
+        dissolveUniforms.uSliceMesh.value = 0;
+        dissolveUniforms.uSliceSoft.value = range.rim * 2.4;
+        dissolveUniforms.uPeel.value = 0.7 * (1 - tDiss * 0.45);
+        dissolveUniforms.uOpacity.value = 1;
+        if (targetMesh) {
+            targetMesh.visible = tDiss < 0.995 || tSlice < 0.08;
+            syncMeshMaterialOpacity(tDiss < 0.92 ? 1 : lerp(1, 0, (tDiss - 0.92) / 0.08));
+        }
+        if (points) points.visible = true;
+        if (pointsMaterial) {
+            var pu = pointsMaterial.uniforms;
+            pu.uPointAlpha.value = tSlice > 0.001 ? 1 : 0;
+            pu.uPointSize.value = lerp(0.01, 0.013, tSlice);
+            pu.uGlow.value = 1;
+            if (pu.uSliceOn) pu.uSliceOn.value = 1;
+            if (pu.uSliceCut) pu.uSliceCut.value = cut;
+            if (pu.uSliceRim) pu.uSliceRim.value = range.rim;
+            if (pu.uSliceNoise) pu.uSliceNoise.value = range.noise;
+            if (pu.uDissolve) pu.uDissolve.value = dissolve;
+            if (pu.uSweepY) pu.uSweepY.value = cut;
+            if (pu.uSweepWidth) pu.uSweepWidth.value = range.rim * 1.8;
+            if (pu.uSweepStrength) pu.uSweepStrength.value = 0.42 + (1 - tSlice) * 0.28;
+            if (pu.uSweepBoost) pu.uSweepBoost.value = 1.05;
+        }
+    }
+
+    function finishMingseDual() {
+        if (targetMesh) {
+            targetMesh.visible = false;
+            targetMesh.material.depthWrite = false;
+            syncMeshMaterialOpacity(0);
+        }
+        clearMingseDual();
+        setPointPositionsToOriginal();
+        if (points) points.visible = true;
+        if (pointsMaterial) {
+            pointsMaterial.uniforms.uPointAlpha.value = 1;
+            pointsMaterial.uniforms.uGlow.value = 1;
+        }
+        pointsReady = true;
+        if (!expandComplete) {
+            expandComplete = true;
+            idleEffectsStartTime = animTime;
+        }
     }
 
     function syncControlsSphericalFromCamera() {
@@ -551,6 +1010,7 @@
         } else v.set(hex);
     }
     function resetVedanaLook() {
+        clearMingseDual();
         if (!pointsMaterial) return;
         var u = pointsMaterial.uniforms;
         setPointColorHex(COL_HOUSE);
@@ -650,6 +1110,24 @@
         return doEnsureLoaded();
     }
 
+    function yieldToPaint() {
+        return new Promise(function (resolve) {
+            requestAnimationFrame(function () {
+                setTimeout(resolve, 0);
+            });
+        });
+    }
+
+    function yieldIdle(timeoutMs) {
+        return new Promise(function (resolve) {
+            if (typeof requestIdleCallback === 'function') {
+                requestIdleCallback(function () { resolve(); }, { timeout: timeoutMs || 600 });
+            } else {
+                setTimeout(resolve, 0);
+            }
+        });
+    }
+
     function doEnsureLoaded() {
         if (loaded) return Promise.resolve();
         if (loadPromise) return loadPromise;
@@ -657,12 +1135,18 @@
             return Promise.reject(new Error('THREE not available — use HTTP server from project root'));
         }
         showLoading();
-        ensureRenderer();
         loadPromise = loadModelWithFallback(buildModelUrls()).then(function (gltf) {
-            clearLoading();
-            setupFromGltf(gltf);
-            var map = targetMesh && targetMesh.material && targetMesh.material.map;
-            return capColorMap(map).then(function () {
+            return yieldToPaint().then(function () {
+                ensureRenderer();
+                return yieldToPaint().then(function () {
+                    clearLoading();
+                    setupFromGltf(gltf);
+                    var map = targetMesh && targetMesh.material && targetMesh.material.map;
+                    return capColorMap(map);
+                });
+            });
+        }).then(function () {
+            return yieldIdle(800).then(function () {
                 warmupGpu();
                 console.info('[HouseModel] ready');
             });
@@ -729,6 +1213,87 @@
         return !alpha || alpha.value > 0.01;
     }
 
+    function ensureCloudShocks() {
+        if (cloudShocks) return;
+        cloudShocks = [];
+        var i;
+        for (i = 0; i < 6; i++) {
+            cloudShocks.push({ pos: new THREE.Vector3(), age: 99 });
+        }
+        if (!cloudPickVec) cloudPickVec = new THREE.Vector3();
+    }
+
+    function ensureShockWaveParams() {
+        if (!pointsMaterial || !pointsMaterial.uniforms) return;
+        var u = pointsMaterial.uniforms;
+        if (u.uWaveSpeed) u.uWaveSpeed.value = Math.max(houseMaxDim * 1.15, 4.5);
+        if (u.uWaveWidth) u.uWaveWidth.value = Math.max(houseMaxDim * 0.045, 0.22);
+        if (u.uShockKick) u.uShockKick.value = Math.max(0.16, houseMaxDim * 0.022);
+    }
+
+    function syncCloudShock(i) {
+        if (!pointsMaterial || !cloudShocks || !cloudShocks[i]) return;
+        var n = cloudShocks[i];
+        var u = pointsMaterial.uniforms;
+        u['uW' + i].value.copy(n.pos);
+        u['uA' + i].value = n.age;
+    }
+
+    function spawnCloudShockLocal(localPos) {
+        if (!localPos || !pointsMaterial) return;
+        ensureCloudShocks();
+        ensureShockWaveParams();
+        var slot = cloudShockSlot % 6;
+        cloudShockSlot += 1;
+        cloudShocks[slot].pos.copy(localPos);
+        cloudShocks[slot].age = 0;
+        syncCloudShock(slot);
+    }
+
+    function pickCloudPointFromClient(clientX, clientY) {
+        if (!points || !camera || !originalPositions || !containerEl) return null;
+        ensureCloudShocks();
+        points.updateMatrixWorld(true);
+        var rect = containerEl.getBoundingClientRect();
+        var w = rect.width || 1;
+        var h = rect.height || 1;
+        var px = clientX - rect.left;
+        var py = clientY - rect.top;
+        var orig = originalPositions;
+        var step = 3;
+        var count = orig.length / 3;
+        if (count > 4500) step = Math.floor(count / 4500) * 3;
+        var bestI = -1;
+        var bestD = 52 * 52;
+        var v = cloudPickVec;
+        var i;
+        for (i = 0; i < orig.length; i += step) {
+            v.set(orig[i], orig[i + 1], orig[i + 2]);
+            points.localToWorld(v);
+            v.project(camera);
+            if (v.z < -1 || v.z > 1) continue;
+            var sx = (v.x * 0.5 + 0.5) * w;
+            var sy = (-v.y * 0.5 + 0.5) * h;
+            var dx = px - sx;
+            var dy = py - sy;
+            var d = dx * dx + dy * dy;
+            if (d < bestD) {
+                bestD = d;
+                bestI = i;
+            }
+        }
+        if (bestI < 0) return null;
+        return new THREE.Vector3(orig[bestI], orig[bestI + 1], orig[bestI + 2]);
+    }
+
+    function trySpawnCloudShockFromClick(clientX, clientY) {
+        if (!pointsAreVisible()) return false;
+        var local = pickCloudPointFromClient(clientX, clientY);
+        if (!local) return false;
+        spawnCloudShockLocal(local);
+        return true;
+    }
+
     function syncMouseRipple() {
         if (!pointsMaterial || !pointsMaterial.uniforms.uRipple) return;
         if (!pointsAreVisible()) {
@@ -765,6 +1330,7 @@
         if (points) points.visible = false;
         if (pointsMaterial) pointsMaterial.uniforms.uPointAlpha.value = 0;
         if (modelRoot) modelRoot.scale.set(1, 1, 1);
+        restoreMeshBaseMaterial();
         syncMeshMaterialOpacity(1);
     }
 
@@ -821,29 +1387,23 @@
     function applyMingseSettle(p) {
         if (!points || !originalPositions) return;
         p = Math.min(1, Math.max(0, p));
-        var posArr = points.geometry.attributes.position.array;
-        var orig = originalPositions;
         var ease = easeOut(p);
-        var follow = 0.012 + 0.036 * ease;
-        if (p > 0.82) follow = lerp(follow, 0.16, (p - 0.82) / 0.18);
-        var wiggle = MINGSE_PULL_AMP * (1 - ease) * (1 - ease);
-        for (var i = 0; i < posArr.length; i += 3) {
-            posArr[i] = lerp(posArr[i], orig[i], follow) + Math.sin(animTime * 2.6 + orig[i]) * wiggle;
-            posArr[i + 1] = lerp(posArr[i + 1], orig[i + 1], follow) + Math.sin(animTime * 2.6 + orig[i + 1]) * wiggle;
-            posArr[i + 2] = lerp(posArr[i + 2], orig[i + 2], follow) + Math.sin(animTime * 2.6 + orig[i + 2]) * wiggle;
-        }
-        points.geometry.attributes.position.needsUpdate = true;
+        setPointPositionsToOriginal();
         if (pointsMaterial) {
-            pointsMaterial.uniforms.uPointSize.value = lerp(0.006, 0.012, ease);
-            pointsMaterial.uniforms.uPointAlpha.value = 1;
+            var u = pointsMaterial.uniforms;
+            if (u.uSliceOn) u.uSliceOn.value = 0;
+            if (u.uSweepStrength) u.uSweepStrength.value = lerp(0.2, 0, ease);
+            u.uPointSize.value = lerp(0.013, 0.012, ease);
+            u.uPointAlpha.value = 1;
+            u.uGlow.value = 1;
         }
-        setSizeScale(lerp(0.85, 1, ease));
+        setSizeScale(1);
         if (targetMesh) {
+            restoreMeshBaseMaterial();
             targetMesh.visible = false;
             syncMeshMaterialOpacity(0);
         }
         points.visible = true;
-        if (p >= 1) setPointPositionsToOriginal();
     }
 
     function applyWumingSettle(progress) {
@@ -932,11 +1492,13 @@
         ensureLiuruOverlay();
         liuruOverlay.innerHTML = '';
         liuruNodes = buildLiuruAnchors();
-        for (var i = 0; i < liuruNodes.length; i++) {
+        var i;
+        for (i = 0; i < liuruNodes.length; i++) {
             liuruNodes[i].el = makeLiuruNodeEl(i);
             liuruOverlay.appendChild(liuruNodes[i].el);
-            syncLiuruWave(i);
         }
+        resetCloudShocks();
+        ensureShockWaveParams();
         if (pointsMaterial) {
             pointsMaterial.uniforms.uGlow.value = 1;
             pointsMaterial.uniforms.uWaveSpeed.value = Math.max(houseMaxDim * 1.15, 4.5);
@@ -1000,11 +1562,23 @@
     function onLiuruPointerUp(e) {
         if (e.button !== 0 || !liuruPointer.down) return;
         liuruPointer.down = false;
-        if (mode !== 'six-circles' || !liuruNodes) return;
         var dx = e.clientX - liuruPointer.x;
         var dy = e.clientY - liuruPointer.y;
         if (dx * dx + dy * dy > 36) return;
-        pickLiuruNode(e.clientX, e.clientY);
+        if (mode === 'six-circles' && liuruNodes) {
+            var litBefore = 0;
+            var n;
+            for (n = 0; n < liuruNodes.length; n++) {
+                if (liuruNodes[n].lit) litBefore += 1;
+            }
+            pickLiuruNode(e.clientX, e.clientY);
+            var litAfter = 0;
+            for (n = 0; n < liuruNodes.length; n++) {
+                if (liuruNodes[n].lit) litAfter += 1;
+            }
+            if (litAfter > litBefore) return;
+        }
+        trySpawnCloudShockFromClick(e.clientX, e.clientY);
     }
 
     function pickLiuruNode(clientX, clientY) {
@@ -1033,7 +1607,7 @@
         if (!n || n.lit) return;
         n.lit = true;
         n.age = 0;
-        syncLiuruWave(index);
+        spawnCloudShockLocal(n.pos);
         if (n.el) {
             if (n.el.parentNode) n.el.parentNode.removeChild(n.el);
             n.el = null;
@@ -1085,38 +1659,37 @@
 
     function tickParticleize(delta) {
         modeElapsed += delta;
-        var duration = Math.max(modeDuration, MINGSE_DISSOLVE_S + MINGSE_SETTLE_S);
-        var dissolveS = Math.min(MINGSE_DISSOLVE_S, Math.max(0.4, duration - MINGSE_SETTLE_S - 0.5));
-        var pullEnd = Math.max(dissolveS, duration - MINGSE_SETTLE_S);
+        var duration = modeDuration > 0 ? modeDuration : (MINGSE_HOLD_S + MINGSE_DUAL_S + MINGSE_SETTLE_S);
+        var holdS = MINGSE_HOLD_S;
+        var settleS = MINGSE_SETTLE_S;
+        var dualS = Math.max(3.5, duration - holdS - settleS);
 
-        if (modeElapsed < dissolveS) {
-            var p = easeInOut(Math.min(1, modeElapsed / dissolveS));
-            applyToPoints(p);
-            setSizeScale(0.85);
-            if (pointsMaterial) pointsMaterial.uniforms.uPointSize.value = 0.006;
-            return;
-        }
-
-        if (!pointsReady) {
-            pointsReady = true;
+        if (modeElapsed < holdS) {
             if (targetMesh) {
-                targetMesh.visible = false;
-                syncMeshMaterialOpacity(0);
+                restoreMeshBaseMaterial();
+                syncMeshMaterialOpacity(1);
             }
-            if (points) points.visible = true;
-            if (pointsMaterial) {
-                pointsMaterial.uniforms.uPointAlpha.value = 1;
-                pointsMaterial.uniforms.uGlow.value = 1;
+            dissolveUniforms.uDissolve.value = 0;
+            dissolveUniforms.uOpacity.value = 1;
+            if (pointsMaterial && pointsMaterial.uniforms.uSliceOn) {
+                var range = mingseSliceRange();
+                pointsMaterial.uniforms.uSliceOn.value = 1;
+                pointsMaterial.uniforms.uSliceCut.value = range.lo;
+                pointsMaterial.uniforms.uPointAlpha.value = 0;
+                pointsMaterial.uniforms.uSweepY.value = range.lo;
+                dissolveUniforms.uSliceCut.value = range.lo;
+                dissolveUniforms.uDissolve.value = 0;
             }
-        }
-
-        if (modeElapsed < pullEnd) {
-            var phase = (modeElapsed - dissolveS) / Math.max(0.001, pullEnd - dissolveS);
-            applyMingsePull(Math.min(1, phase));
             return;
         }
 
-        applyMingseSettle((modeElapsed - pullEnd) / MINGSE_SETTLE_S);
+        if (modeElapsed < holdS + dualS) {
+            applyMingseDual((modeElapsed - holdS) / dualS);
+            return;
+        }
+
+        if (!pointsReady) finishMingseDual();
+        applyMingseSettle((modeElapsed - holdS - dualS) / settleS);
     }
 
     function ensureRandomOffsets() {
@@ -1128,13 +1701,64 @@
         }
     }
 
+    function resetCloudShocks() {
+        ensureCloudShocks();
+        var i;
+        for (i = 0; i < 6; i++) {
+            cloudShocks[i].age = 99;
+            if (pointsMaterial) {
+                pointsMaterial.uniforms['uA' + i].value = 99;
+            }
+        }
+    }
+
     function clearLiuruWaves() {
         liuruNodes = null;
+        resetCloudShocks();
         if (!pointsMaterial) return;
-        for (var i = 0; i < 6; i++) {
-            pointsMaterial.uniforms['uA' + i].value = 99;
+        var i;
+        for (i = 0; i < 6; i++) {
             pointsMaterial.uniforms['uL' + i].value = 0;
         }
+    }
+
+    function applyDustTremor(strength) {
+        if (!points || !originalPositions) return;
+        updateMouseWorld();
+        points.updateMatrixWorld(true);
+        var e = points.matrixWorld.elements;
+        var mx = mouseWorld ? mouseWorld.x : 0;
+        var my = mouseWorld ? mouseWorld.y : 0;
+        var mz = mouseWorld ? mouseWorld.z : 0;
+        var hasMouse = !!mouseWorld;
+        var dim = houseMaxDim || 10;
+        var peak = dim * 0.032 * strength;
+        var base = dim * 0.007 * strength;
+        var fall = 3.4 / dim;
+        var posArr = points.geometry.attributes.position.array;
+        var orig = originalPositions;
+        var t = animTime;
+        var i;
+        for (i = 0; i < orig.length; i += 3) {
+            var ox = orig[i];
+            var oy = orig[i + 1];
+            var oz = orig[i + 2];
+            var d = 1e6;
+            if (hasMouse) {
+                var wx = e[0] * ox + e[4] * oy + e[8] * oz + e[12];
+                var wy = e[1] * ox + e[5] * oy + e[9] * oz + e[13];
+                var wz = e[2] * ox + e[6] * oy + e[10] * oz + e[14];
+                var dx = wx - mx;
+                var dy = wy - my;
+                var dz = wz - mz;
+                d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            }
+            var amp = peak * Math.exp(-d * fall) + base;
+            posArr[i] = ox + Math.sin(t * 18 + ox * 20) * amp;
+            posArr[i + 1] = oy + Math.cos(t * 16 + oy * 20) * amp;
+            posArr[i + 2] = oz + Math.sin(t * 17 + oz * 20) * amp;
+        }
+        points.geometry.attributes.position.needsUpdate = true;
     }
 
     function beginChu() {
@@ -1163,36 +1787,23 @@
     function tickChu(delta) {
         modeElapsed += delta;
         ensureRandomOffsets();
-        if (!points || !originalPositions || !randomOffsets) return;
+        if (!points || !originalPositions) return;
         if (!pointsReady) {
             hideMeshShowPoints();
             pointsReady = true;
         }
-        var k = Math.max(1, houseMaxDim / 8);
-        var osc = 0.05 * k * Math.sin(animTime * 15);
-        var wave = 0.032 * k;
-        var posArr = points.geometry.attributes.position.array;
-        var orig = originalPositions;
-        var off = randomOffsets;
-        var t = animTime;
-        for (var i = 0; i < posArr.length; i += 3) {
-            posArr[i] = orig[i] + off[i] * osc + Math.sin(t * 8 + i * 0.01) * wave;
-            posArr[i + 1] = orig[i + 1] + off[i + 1] * osc + Math.cos(t * 7 + i * 0.01) * wave;
-            posArr[i + 2] = orig[i + 2] + off[i + 2] * osc;
-        }
-        points.geometry.attributes.position.needsUpdate = true;
+        applyDustTremor(1);
         if (pointsMaterial) {
             pointsMaterial.uniforms.uPointAlpha.value = 1;
             pointsMaterial.uniforms.uGlow.value = 1;
             pointsMaterial.uniforms.uRipple.value = 1;
-            pointsMaterial.uniforms.uPointSize.value = 0.012 * (1 + 0.28 * Math.abs(Math.sin(t * 15)));
+            pointsMaterial.uniforms.uPointSize.value = 0.012;
         }
         if (targetMesh) {
             targetMesh.visible = false;
             syncMeshMaterialOpacity(0);
         }
         points.visible = true;
-        updateMouseWorld();
     }
 
     function seedShouStart() {
@@ -1276,19 +1887,13 @@
         }
 
         if (env.stage === 0) {
-            var osc = 0.05 * kScale * Math.sin(t * 15) * env.fade;
-            var wave = 0.032 * kScale * env.fade;
-            for (i = 0; i < posArr.length; i += 3) {
-                posArr[i] = orig[i] + off[i] * osc + Math.sin(t * 8 + i * 0.01) * wave;
-                posArr[i + 1] = orig[i + 1] + off[i + 1] * osc + Math.cos(t * 7 + i * 0.01) * wave;
-                posArr[i + 2] = orig[i + 2] + off[i + 2] * osc;
-            }
+            applyDustTremor(env.fade);
             setPointColorHex(COL_HOUSE);
             u.uAccent.value = 0;
             u.uBloom.value = 0;
             u.uGlow.value = 1 + 0.45 * env.fade;
-            u.uPointSize.value = 0.012 * (1 + 0.22 * env.fade);
-            points.geometry.attributes.position.needsUpdate = true;
+            u.uRipple.value = env.fade;
+            u.uPointSize.value = 0.012;
             if (targetMesh) {
                 targetMesh.visible = false;
                 syncMeshMaterialOpacity(0);
@@ -1500,44 +2105,105 @@
         syncControlsSphericalFromCamera();
     }
 
-    function beginPointsHold() {
+    function isPhaseMode(key) {
+        return key === 'phase' || key === 'ring-flow';
+    }
+
+    function phaseInvScale() {
+        return 1 / Math.max((houseMaxDim || 10) * 0.5, 1e-4);
+    }
+
+    function phaseAmpTarget() {
+        var nx = mouseNDC.x;
+        var u = (nx > -1.5 && nx < 1.5) ? (nx + 1) * 0.5 : 0.5;
+        if (u < 0) u = 0;
+        if (u > 1) u = 1;
+        return (0.04 + u * 0.12) * Math.max((houseMaxDim || 10) * 0.5, 1);
+    }
+
+    function writePhaseOffset(posArr, i, orig, t, amp, inv) {
+        var ph = t * 1.4 + orig[i] * 6 * inv + orig[i + 2] * 5 * inv;
+        posArr[i] = orig[i] + Math.cos(ph) * amp;
+        posArr[i + 1] = orig[i + 1] + Math.sin(ph * 0.85) * amp * 0.7;
+        posArr[i + 2] = orig[i + 2] + Math.sin(ph * 1.1) * amp;
+    }
+
+    function hideHouseMeshes() {
+        if (!modelRoot) return;
+        modelRoot.traverse(function (child) {
+            if (child.isMesh) {
+                child.visible = false;
+                if (child.material) {
+                    child.material.transparent = true;
+                    child.material.opacity = 0;
+                }
+            }
+        });
+    }
+
+    function beginPhase() {
+        fadeFromPhase = false;
+        phaseTime = 0;
+        phaseAmp = 0;
         applyAiLift(0);
         unlockAiControls();
         if (modelRoot) modelRoot.scale.set(1, 1, 1);
         restoreDefaultCamera();
         resetVedanaLook();
-        hideMeshShowPoints();
+        if (!pointsReady) markPointsReady();
+        else hideMeshShowPoints();
+        hideHouseMeshes();
+        setSizeScale(1);
+        if (points) {
+            points.visible = true;
+            points.frustumCulled = false;
+            if (points.geometry && points.geometry.attributes.position) {
+                points.geometry.attributes.position.dynamic = true;
+            }
+        }
         if (pointsMaterial) {
             pointsMaterial.uniforms.uPointAlpha.value = 1;
             pointsMaterial.uniforms.uPointSize.value = 0.012;
             pointsMaterial.uniforms.uGlow.value = 1;
         }
+        keepPointCloud();
     }
 
-    function tickPointsHold() {
+    function tickPhase(delta) {
         if (!points || !originalPositions) return;
-        setPointPositionsToOriginal();
+        phaseTime += delta;
+        var intro = Math.min(1, phaseTime / 0.75);
+        intro = intro * intro * (3 - 2 * intro);
+        var target = phaseAmpTarget();
+        phaseAmp += (target - phaseAmp) * Math.min(1, delta * 6);
+        var amp = phaseAmp * intro;
+        var posArr = points.geometry.attributes.position.array;
+        var orig = originalPositions;
+        if (posArr.length < orig.length) return;
+        var inv = phaseInvScale();
+        var i;
+        for (i = 0; i < orig.length; i += 3) {
+            writePhaseOffset(posArr, i, orig, phaseTime, amp, inv);
+        }
+        points.geometry.attributes.position.needsUpdate = true;
         keepPointCloud();
     }
 
     function beginFade() {
+        var seamless = fadeFromPhase;
         applyAiLift(0);
         unlockAiControls();
-        if (modelRoot) {
-            modelRoot.scale.set(1, 1, 1);
-            modelRoot.traverse(function (child) {
-                if (child.isMesh) {
-                    child.visible = false;
-                    if (child.material) {
-                        child.material.transparent = true;
-                        child.material.opacity = 0;
-                    }
-                }
-            });
-        }
-        restoreDefaultCamera();
+        if (modelRoot && !seamless) modelRoot.scale.set(1, 1, 1);
+        hideHouseMeshes();
+        if (!seamless) restoreDefaultCamera();
         resetVedanaLook();
-        hideMeshShowPoints();
+        if (seamless) {
+            keepPointCloud();
+        } else {
+            hideMeshShowPoints();
+            phaseTime = 0;
+            phaseAmp = 0;
+        }
         if (points) {
             points.visible = true;
             points.frustumCulled = false;
@@ -1552,12 +2218,16 @@
         }
         var n = originalPositions ? originalPositions.length / 3 : 0;
         fadeDelay = new Float32Array(n);
+        fadeSnapX = new Float32Array(n);
+        fadeSnapY = new Float32Array(n);
+        fadeSnapZ = new Float32Array(n);
+        fadePeeling = new Uint8Array(n);
         var i;
         for (i = 0; i < n; i++) fadeDelay[i] = Math.random() * 5.4;
         if (!fadeInvMat) fadeInvMat = new THREE.Matrix4();
         if (!fadeUp) fadeUp = new THREE.Vector3();
         setSizeScale(1);
-        setPointPositionsToOriginal();
+        if (!seamless) setPointPositionsToOriginal();
     }
 
     function tickFade(delta) {
@@ -1578,31 +2248,61 @@
         var ux = fadeUp.x * lift;
         var uy = fadeUp.y * lift;
         var uz = fadeUp.z * lift;
+        if (fadeFromPhase) {
+            phaseTime += delta;
+            var target = phaseAmpTarget();
+            phaseAmp += (target - phaseAmp) * Math.min(1, delta * 4);
+            if (modelRoot) {
+                var s = modelRoot.scale.x;
+                var ns = s + (1 - s) * Math.min(1, delta * 1.8);
+                modelRoot.scale.set(ns, ns, ns);
+            }
+        }
+        var amp = fadeFromPhase ? phaseAmp : 0;
+        var inv = phaseInvScale();
         var idx = 0;
         var i;
         for (i = 0; i < orig.length; i += 3) {
             var delay = fadeDelay[idx];
             var gone = t > delay ? (t - delay) * 0.55 : 0;
-            var a = gone >= 1 ? 0 : 1 - gone;
-            if (a <= 0.02) {
-                if (sizeArr && idx < sizeArr.length) sizeArr[idx] = 0;
+            if (gone <= 0) {
+                if (fadeFromPhase && amp > 1e-5) {
+                    writePhaseOffset(posArr, i, orig, phaseTime, amp, inv);
+                } else {
+                    posArr[i] = orig[i];
+                    posArr[i + 1] = orig[i + 1];
+                    posArr[i + 2] = orig[i + 2];
+                }
+                if (sizeArr && idx < sizeArr.length) sizeArr[idx] = 1;
             } else {
-                var n1 = Math.sin(orig[i] * 3.1 + t * 1.35);
-                var n2 = Math.sin(orig[i + 1] * 2.7 + t * 1.05 + 8.4);
-                posArr[i] = orig[i] + ux * gone + n1 * drift * gone;
-                posArr[i + 1] = orig[i + 1] + uy * gone + n2 * drift * gone;
-                posArr[i + 2] = orig[i + 2] + uz * gone;
-                if (sizeArr && idx < sizeArr.length) sizeArr[idx] = a;
+                if (fadePeeling && !fadePeeling[idx]) {
+                    fadePeeling[idx] = 1;
+                    if (fadeSnapX) {
+                        fadeSnapX[idx] = posArr[i];
+                        fadeSnapY[idx] = posArr[i + 1];
+                        fadeSnapZ[idx] = posArr[i + 2];
+                    }
+                }
+                var a = gone >= 1 ? 0 : 1 - gone;
+                if (a <= 0.02) {
+                    if (sizeArr && idx < sizeArr.length) sizeArr[idx] = 0;
+                } else {
+                    var n1 = Math.sin(orig[i] * 3.1 + t * 1.35);
+                    var n2 = Math.sin(orig[i + 1] * 2.7 + t * 1.05 + 8.4);
+                    var sx = fadeSnapX ? fadeSnapX[idx] : orig[i];
+                    var sy = fadeSnapY ? fadeSnapY[idx] : orig[i + 1];
+                    var sz = fadeSnapZ ? fadeSnapZ[idx] : orig[i + 2];
+                    posArr[i] = sx + ux * gone + n1 * drift * gone;
+                    posArr[i + 1] = sy + uy * gone + n2 * drift * gone;
+                    posArr[i + 2] = sz + uz * gone;
+                    if (sizeArr && idx < sizeArr.length) sizeArr[idx] = a;
+                }
             }
             idx += 1;
         }
         points.geometry.attributes.position.needsUpdate = true;
         if (sizeAttr) sizeAttr.needsUpdate = true;
-        if (modelRoot) {
-            modelRoot.traverse(function (child) {
-                if (child.isMesh) child.visible = false;
-            });
-        }
+        hideHouseMeshes();
         points.visible = true;
         if (pointsMaterial) {
             var tail = t > 7.2 ? Math.max(0, 1 - (t - 7.2) / 2.6) : 1;
@@ -1886,17 +2586,55 @@
         renderer.render(scene, camera);
     }
 
+    function updateHoloScan(delta) {
+        var u = pointsMaterial && pointsMaterial.uniforms;
+        if (!u || !u.uHoloOn) return;
+        var alpha = u.uPointAlpha ? u.uPointAlpha.value : 0;
+        var showing = points && points.visible && alpha > 0.02;
+        if (!showing || mode === 'ai' || mode === 'qu') {
+            u.uHoloOn.value = 0;
+            return;
+        }
+        var lo = sweepMinY;
+        var hi = sweepMaxY;
+        if (points) {
+            points.updateMatrixWorld(true);
+            var box = new THREE.Box3().setFromObject(points);
+            if (isFinite(box.min.y) && isFinite(box.max.y) && box.max.y > box.min.y + 0.05) {
+                lo = box.min.y;
+                hi = box.max.y;
+            }
+        }
+        var span = hi - lo;
+        if (!(span > 0.05)) span = houseMaxDim || 10;
+        holoPhase += delta * 0.22;
+        if (holoPhase >= 1) holoPhase -= Math.floor(holoPhase);
+        u.uHoloOn.value = 1;
+        u.uHoloY.value = lo - span * 0.12 + holoPhase * span * 1.24;
+        u.uHoloWidth.value = Math.max(span * 0.11, 0.22);
+        u.uHoloKick.value = Math.max(span * 0.085, 0.12);
+    }
+
     function updateIdleMotion(delta) {
         if (!modelRoot) return;
         animTime += delta;
         if (pointsMaterial && pointsMaterial.uniforms.uTime) {
             pointsMaterial.uniforms.uTime.value = animTime;
         }
+        updateHoloScan(delta);
         if (liuruNodes) {
             for (var w = 0; w < liuruNodes.length; w++) {
                 if (liuruNodes[w].lit && liuruNodes[w].age < 8) {
                     liuruNodes[w].age += delta;
-                    syncLiuruWave(w);
+                }
+            }
+        }
+        if (cloudShocks) {
+            var s;
+            for (s = 0; s < cloudShocks.length; s++) {
+                if (cloudShocks[s].age < 8) {
+                    cloudShocks[s].age += delta;
+                    syncCloudShock(s);
                 }
             }
         }
@@ -1932,8 +2670,8 @@
                 tickQu(delta);
             } else if (mode === 'fade') {
                 tickFade(delta);
-            } else if (mode === 'ring-flow') {
-                tickPointsHold(delta);
+            } else if (mode === 'phase' || mode === 'ring-flow') {
+                tickPhase(delta);
             } else {
                 tickPlaceholder(delta);
             }
@@ -1971,6 +2709,8 @@
     function enterStageMode(stageKey, opts) {
         opts = opts || {};
         var prevMode = mode;
+        var seamlessFade = isPhaseMode(prevMode) && stageKey === 'fade';
+        fadeFromPhase = seamlessFade;
         onMouseMoveCb = opts.onMouseMove || null;
         modeDuration = (opts.durationMs || 5000) / 1000;
         modeElapsed = 0;
@@ -1982,16 +2722,18 @@
         if (!containerEl) return Promise.resolve();
 
         containerEl.dataset.houseMode = stageKey || '';
-        containerEl.hidden = false;
+        if (!seamlessFade) coverHouseLayer();
         suspended = false;
 
         return ensureLoaded().then(function () {
+            if (!gpuWarmed) warmupGpu();
             modeElapsed = 0;
             if (stageKey !== 'ai' && stageKey !== 'qu') {
                 unlockAiControls();
                 applyAiLift(0);
             }
             if (stageKey !== 'six-circles') endLiuruUi();
+            if (stageKey !== 'particleize') clearMingseDual();
 
             if (stageKey === 'expand') {
                 animTime = 0;
@@ -1999,17 +2741,13 @@
                 expandComplete = false;
                 pointsReady = false;
                 if (modelRoot) {
-                    modelRoot.scale.set(1, 1, 1);
-                    modelRoot.rotation.y = 0;
+                    modelRoot.rotation.y = MODEL_YAW0;
                 }
                 onResize();
                 applyExpand(0);
                 renderFrame();
             } else if (stageKey === 'particleize') {
-                if (!expandComplete) forceExpandComplete();
-                pointsReady = false;
-                applyHold();
-                applyToPoints(0);
+                beginMingseDual();
                 onResize();
                 renderFrame();
             } else if (stageKey === 'six-circles') {
@@ -2039,8 +2777,8 @@
                 if (prevMode !== 'qu') beginQu();
                 onResize();
                 renderFrame();
-            } else if (stageKey === 'ring-flow') {
-                beginPointsHold();
+            } else if (stageKey === 'phase' || stageKey === 'ring-flow') {
+                beginPhase();
                 onResize();
                 renderFrame();
             } else if (stageKey === 'fade') {
@@ -2073,6 +2811,7 @@
             }
 
             startLoop();
+            revealHouseLayer();
         });
     }
 
@@ -2093,13 +2832,17 @@
         camera = null;
         modelRoot = null;
         targetMesh = null;
+        meshBaseMaterial = null;
+        extraHouseMeshes = [];
         points = null;
         pointsMaterial = null;
+        cloudShocks = null;
         clock = null;
         canvasReady = false;
         if (containerEl) {
             containerEl.innerHTML = '';
             containerEl.hidden = true;
+            containerEl.style.visibility = '';
         }
     }
 
@@ -2112,7 +2855,10 @@
         modeElapsed = 0;
         if (!opts.keepVisible) applyAiLift(0);
         if (containerEl) {
-            if (!opts.keepVisible) containerEl.hidden = true;
+            if (!opts.keepVisible) {
+                containerEl.hidden = true;
+                containerEl.style.visibility = '';
+            }
             containerEl.dataset.houseMode = '';
         }
         suspended = !!(renderer && points);
@@ -2128,6 +2874,13 @@
         originalPositions = null;
         randomOffsets = null;
         fadeDelay = null;
+        fadeSnapX = null;
+        fadeSnapY = null;
+        fadeSnapZ = null;
+        fadePeeling = null;
+        fadeFromPhase = false;
+        phaseTime = 0;
+        phaseAmp = 0;
         cachedGltf = null;
         suspended = false;
         loaded = false;
@@ -2159,6 +2912,7 @@
         getCloudColorRgb: getCloudColorRgb,
         isLiuruComplete: function () { return liuruComplete; },
         ensureLoaded: ensureLoaded,
+        prefetchModel: prefetchModel,
         debugState: function () {
             return {
                 mode: mode,

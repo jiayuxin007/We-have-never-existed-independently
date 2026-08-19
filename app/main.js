@@ -57,6 +57,48 @@
         global.NoteAudio.unlock();
     }
 
+    function afterMs(ms) {
+        return new Promise(function (resolve) {
+            setTimeout(resolve, ms);
+        });
+    }
+
+    function hintPrefetch(url, asType) {
+        if (!url || !document.head) return;
+        var link = document.createElement('link');
+        link.rel = 'preload';
+        if (asType) link.as = asType;
+        if (asType === 'font') {
+            link.type = 'font/ttf';
+            link.crossOrigin = 'anonymous';
+        }
+        link.href = url;
+        document.head.appendChild(link);
+    }
+
+    /** 开场前 2 秒：只做网络预取，不解析 Three / GLB / 着色器 */
+    function prefetchNextStageAssets() {
+        var assets = global.ASSETS_CONFIG || {};
+        if (global.ThreeRegistry) {
+            if (global.ThreeRegistry.prefetchR128) global.ThreeRegistry.prefetchR128();
+            if (global.ThreeRegistry.prefetchP5) global.ThreeRegistry.prefetchP5();
+        }
+        if (assets.fonts && assets.fonts.sutra) hintPrefetch(assets.fonts.sutra, 'font');
+        if (assets.bgm) hintPrefetch(assets.bgm, 'audio');
+        if (global.HouseModelStage && global.HouseModelStage.prefetchModel) {
+            global.HouseModelStage.prefetchModel();
+        }
+    }
+
+    /** 点击解锁后：再编译后续关卡，避免抢开场动画的主线程 */
+    function warmupNextStage(dbg, startIndex) {
+        if (global.SutraController && global.SutraController.preloadFont) {
+            global.SutraController.preloadFont();
+        }
+        initDataPanel(dbg, startIndex);
+        preloadHouseModel();
+    }
+
     function preloadHouseModel() {
         if (!global.HouseModelStage || !global.ThreeRegistry) return;
         global.ThreeRegistry.ensureR128().then(function () {
@@ -65,6 +107,16 @@
         }).catch(function (err) {
             console.warn('[App] house model preload:', err && err.message ? err.message : err);
         });
+    }
+
+    function scheduleIntroLoading(dbg, startIndex) {
+        afterMs(400).then(function () {
+            prefetchNextStageAssets();
+        });
+        /* 解析 Three / 房屋会卡住雪花，等点完开场再做 */
+        global.__INTRO_WARMUP__ = function () {
+            warmupNextStage(dbg, startIndex);
+        };
     }
 
     function boot() {
@@ -85,9 +137,8 @@
 
         var bgVideo = document.getElementById('globalBgVideo');
         if (bgVideo) {
-            if (global.ASSETS_CONFIG && global.ASSETS_CONFIG.video) {
-                bgVideo.src = global.ASSETS_CONFIG.video.bg;
-            }
+            var nextBg = global.ASSETS_CONFIG && global.ASSETS_CONFIG.video && global.ASSETS_CONFIG.video.bg;
+            if (nextBg && !bgVideo.currentSrc) bgVideo.src = nextBg;
             bgVideo.play().catch(function () {});
         }
 
@@ -100,7 +151,6 @@
             document.getElementById('karmaHud')
         );
         global.HouseModelStage.init(document.getElementById('houseLayer'));
-        preloadHouseModel();
         global.BgmController.init(document.getElementById('ambientAudio'));
         global.IntroController.init(
             document.getElementById('introScreen'),
@@ -141,6 +191,7 @@
                 }
             }
             initDataPanel(dbg, startIndex);
+            preloadHouseModel();
             if (startIndex > 0 && global.BgmController) {
                 global.BgmController.startLoop();
             }
@@ -154,13 +205,15 @@
             return;
         }
 
-        /* 与 MyProject 一致：enter 内 bootIntro，点雪花后再进 stage 1+ */
-        initDataPanel(dbg, startIndex);
+        /* 开场先跑动画；前 2 秒不能点雪花，只预取后续资源 */
+        scheduleIntroLoading(dbg, startIndex);
         global.IntroController.enter().then(function () {
             onIntroComplete(stage0);
             global.IntroController.exit();
-            return global.ThreeRegistry.ensureR128();
-        }).then(function () {
+            if (typeof global.__INTRO_WARMUP__ === 'function') {
+                global.__INTRO_WARMUP__();
+                global.__INTRO_WARMUP__ = null;
+            }
             return global.StageDirector.init({
                 dom: buildDom(crosshair),
                 crosshair: crosshair,

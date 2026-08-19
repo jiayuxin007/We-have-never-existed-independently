@@ -1,0 +1,129 @@
+.swim-preview-page {
+    overflow: hidden;
+    cursor: auto !important;
+    background: #000;
+}
+
+.swim-preview-page *,
+.swim-preview-page *::before,
+.swim-preview-page *::after {
+    cursor: auto !important;
+}
+
+#previewBgVideo,
+.swim-preview-page .global-bg-video {
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+}
+
+.swim-stage {
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+}
+
+.swim-stage canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.swim-header {
+    position: fixed;
+    top: 24px;
+    left: 28px;
+    z-index: 4;
+    max-width: min(560px, calc(100vw - 200px));
+}
+
+.swim-kicker {
+    margin: 0 0 8px;
+    font-family: 'Pixelate', monospace, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: rgba(255, 255, 255, 0.42);
+}
+
+.swim-header h1 {
+    margin: 0 0 10px;
+    font-family: 'SiteFont', serif;
+    font-size: clamp(22px, 3vw, 34px);
+    font-weight: normal;
+    letter-spacing: 0.06em;
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.swim-note {
+    margin: 0 0 14px;
+    font-family: 'Pixelate', monospace, sans-serif;
+    font-size: 12px;
+    line-height: 1.55;
+    letter-spacing: 0.04em;
+    color: rgba(200, 210, 235, 0.55);
+}
+
+.swim-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.swim-tabs button {
+    appearance: none;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(0, 0, 0, 0.28);
+    color: rgba(255, 255, 255, 0.62);
+    padding: 7px 14px;
+    border-radius: 8px;
+    font-family: 'Pixelate', monospace, sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+}
+
+.swim-tabs button.is-active {
+    border-color: rgba(180, 160, 255, 0.55);
+    background: rgba(70, 40, 130, 0.35);
+    color: rgba(255, 255, 255, 0.94);
+}
+
+.swim-controls {
+    position: fixed;
+    top: 20px;
+    right: 24px;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+}
+
+.swim-controls button {
+    appearance: none;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(0, 0, 0, 0.35);
+    color: rgba(255, 255, 255, 0.88);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-family: 'Pixelate', monospace, sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+}
+
+.swim-phase {
+    margin: 0;
+    font-family: 'SiteFont', serif;
+    font-size: 18px;
+    letter-spacing: 0.14em;
+    color: rgba(200, 180, 255, 0.82);
+}
+
+.swim-status {
+    margin: 0;
+    font-family: 'Pixelate', monospace, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: rgba(255, 255, 255, 0.4);
+}

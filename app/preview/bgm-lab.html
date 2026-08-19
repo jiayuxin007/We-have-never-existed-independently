@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BGM Lab — 纯音乐试听</title>
+    <meta name="color-scheme" content="dark">
+    <link rel="stylesheet" href="../styles/main.css?v=29">
+    <link rel="stylesheet" href="bgm-lab.css?v=1">
+</head>
+<body class="bgm-lab-page">
+    <video class="layer global-bg-video" autoplay muted playsinline loop>
+        <source src="../../assets/video/mixkit-flying-in-the-space-between-stars-and-nebulae-32973-hd-ready.mp4" type="video/mp4">
+    </video>
+    <div class="bgm-vignette" aria-hidden="true"></div>
+
+    <header class="bgm-header">
+        <p class="bgm-kicker">Preview only · 不接入正式流程</p>
+        <h1>BGM Lab</h1>
+        <p class="bgm-lead">按作品气质筛的免版权纯音乐：赛博萨满 / 赛博宗教 / 代码科技 / 暗黑空间。点卡片试听，选中后再接到主流程。</p>
+        <p class="bgm-legal">曲库来自 Mixkit License（可商用）。现用 <code>mars.mp3</code> 需本地合法文件。试听页通过 CDN 在线播放，未写入仓库。</p>
+        <nav class="bgm-filters" id="bgmFilters" aria-label="风格"></nav>
+        <label class="bgm-drop">
+            <input id="bgmFile" type="file" accept="audio/*" multiple>
+            或拖入本地音频对比
+        </label>
+    </header>
+
+    <main class="bgm-grid" id="bgmGrid"></main>
+
+    <aside class="bgm-dock" id="bgmDock">
+        <button type="button" class="bgm-play" id="bgmPlay" aria-label="播放">Play</button>
+        <div class="bgm-dock-meta">
+            <p class="bgm-now-title" id="bgmNowTitle">未选择</p>
+            <p class="bgm-now-sub" id="bgmNowSub">点卡片开始</p>
+        </div>
+        <input type="range" id="bgmSeek" min="0" max="1000" value="0" aria-label="进度">
+        <span class="bgm-time" id="bgmTime">0:00 / 0:00</span>
+        <label class="bgm-vol">
+            Vol
+            <input type="range" id="bgmVol" min="0" max="100" value="70" aria-label="音量">
+        </label>
+        <button type="button" class="bgm-loop" id="bgmLoop" aria-pressed="true">Loop</button>
+        <a class="bgm-src" id="bgmSrc" href="#" target="_blank" rel="noopener">Source</a>
+    </aside>
+
+    <audio id="bgmAudio" preload="none"></audio>
+    <script src="bgm-lab.js?v=2"></script>
+</body>
+</html>

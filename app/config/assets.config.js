@@ -24,8 +24,8 @@
             '../assets/audio/note5.wav',
             '../assets/audio/note6.wav',
         ],
-        /** Harry Gregson-Williams / The Martian — track “Mars”. Place a legally obtained file here. */
-        bgm: '../assets/audio/mars.mp3',
+        /** Mixkit — Xanthos by Eugenio Mininni. Free under Mixkit License. */
+        bgm: '../assets/audio/xanthos.mp3',
         favicon: '../assets/favicon.svg',
         market: {
             /** Binance @ticker 推送（默认）；MC = circulatingSupply × P */

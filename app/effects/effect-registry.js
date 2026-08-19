@@ -26,7 +26,7 @@
         'constraint-particles': {
             kind: 'path',
             threeProfile: 'r74-spirit',
-            scripts: ['../reference/constraint-particles/js/constraint-particles-embed.js'],
+            scripts: ['../reference/constraint-particles/js/constraint-particles-embed.js?v=2'],
             mountName: 'mountConstraintParticles',
             needsMouseMove: false,
         },
@@ -103,15 +103,52 @@
         }];
     }
 
-    function loadScriptOnce(src) {
-        if (scriptLoaded[src]) return scriptLoaded[src];
-        scriptLoaded[src] = new Promise(function (resolve, reject) {
+    function injectInlineScript(code) {
+        var s = document.createElement('script');
+        s.type = 'text/javascript';
+        s.text = code;
+        document.head.appendChild(s);
+    }
+
+    function loadScriptTag(src, profile) {
+        return new Promise(function (resolve, reject) {
+            var registry = global.ThreeRegistry;
             var s = document.createElement('script');
             s.src = src;
             s.async = false;
-            s.onload = function () { resolve(); };
-            s.onerror = function () { reject(new Error('Effect script failed: ' + src)); };
+            s.onload = function () {
+                if (profile && registry.releaseProfile) registry.releaseProfile();
+                resolve();
+            };
+            s.onerror = function () {
+                if (profile && registry.releaseProfile) registry.releaseProfile();
+                reject(new Error('Effect script failed: ' + src));
+            };
+            if (profile && registry.acquireProfile) registry.acquireProfile(profile);
             document.head.appendChild(s);
+        });
+    }
+
+    function loadScriptOnce(src, profile) {
+        if (scriptLoaded[src]) return scriptLoaded[src];
+        var url = src;
+        try {
+            url = new URL(src, global.location.href).href;
+        } catch (err) {}
+        scriptLoaded[src] = global.fetch(url).then(function (res) {
+            if (!res.ok) throw new Error('Effect script failed: ' + src);
+            return res.text();
+        }).then(function (code) {
+            var registry = global.ThreeRegistry;
+            if (profile && registry.acquireProfile) registry.acquireProfile(profile);
+            try {
+                injectInlineScript(code);
+            } finally {
+                if (profile && registry.releaseProfile) registry.releaseProfile();
+            }
+        }).catch(function (err) {
+            if (err && /Effect script failed/.test(err.message)) throw err;
+            return loadScriptTag(src, profile);
         });
         return scriptLoaded[src];
     }
@@ -132,7 +169,7 @@
             if (typeof def.beforeLoad === 'function') def.beforeLoad();
             var chain = Promise.resolve();
             (def.scripts || []).forEach(function (src) {
-                chain = chain.then(function () { return loadScriptOnce(src); });
+                chain = chain.then(function () { return loadScriptOnce(src, def.threeProfile); });
             });
             return chain;
         });
@@ -148,23 +185,35 @@
 
         return ensureEffectScripts(effectId).then(function () {
             if (def.preMount) def.preMount();
-            global.ThreeRegistry.useProfile(def.threeProfile);
+            if (global.ThreeRegistry.acquireProfile) {
+                global.ThreeRegistry.acquireProfile(def.threeProfile);
+            } else {
+                global.ThreeRegistry.useProfile(def.threeProfile);
+            }
             var fn = global[def.mountName];
             if (typeof fn !== 'function') {
+                releasePathProfile();
                 throw new Error('Mount function missing: ' + def.mountName);
             }
-            return fn(opts);
+            try {
+                return fn(opts);
+            } catch (err) {
+                releasePathProfile();
+                throw err;
+            }
         });
+    }
+
+    function releasePathProfile() {
+        if (global.ThreeRegistry.releaseProfile) global.ThreeRegistry.releaseProfile();
+        global.ThreeRegistry.useR128();
     }
 
     function disposeHandle(handle, effectId) {
         if (handle && typeof handle.dispose === 'function') {
             handle.dispose();
         }
-        var def = getDef(effectId);
-        if (def) {
-            global.ThreeRegistry.useR128();
-        }
+        releasePathProfile();
     }
 
     global.EffectRegistry = {

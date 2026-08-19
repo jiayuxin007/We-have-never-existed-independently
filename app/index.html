@@ -6,16 +6,16 @@
     <title>We have never existed independently.</title>
     <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
     <meta name="color-scheme" content="dark">
-    <link rel="preload" href="../assets/fonts/FZCAOYTJW(1).TTF" as="font" type="font/ttf" crossorigin>
-    <link rel="stylesheet" href="styles/main.css?v=24">
+    <link rel="preload" href="../assets/fonts/NITEMARE.TTF" as="font" type="font/ttf" crossorigin>
+    <link rel="stylesheet" href="styles/main.css?v=33">
 </head>
 <body>
     <video id="globalBgVideo" class="layer global-bg-video" autoplay muted playsinline loop>
         <source src="../assets/video/mixkit-flying-in-the-space-between-stars-and-nebulae-32973-hd-ready.mp4" type="video/mp4">
     </video>
 
-    <audio id="ambientAudio" class="ambient-audio-hidden" loop preload="auto" playsinline aria-hidden="true">
-        <source src="../assets/audio/mars.mp3" type="audio/mpeg">
+    <audio id="ambientAudio" class="ambient-audio-hidden" loop preload="metadata" playsinline aria-hidden="true">
+        <source src="../assets/audio/xanthos.mp3" type="audio/mpeg">
     </audio>
 
     <!-- Stage 0: intro + snowflake -->
@@ -47,7 +47,7 @@
     <div id="effectLayer" class="layer" hidden></div>
     <div id="houseLayer" class="layer" hidden></div>
     <div id="karmaHud" class="karma-hud" hidden>
-        <div class="bar-hud">
+        <div class="bar-hud" id="karmaBarHud">
             <span class="bar-hud-c tl"></span>
             <span class="bar-hud-c tr"></span>
             <span class="bar-hud-c bl"></span>
@@ -56,6 +56,10 @@
             <span class="karma-hud-pct" id="karmaBarPct">0%</span>
         </div>
         <p class="karma-hud-label" id="karmaText">Karma calculation in progress...</p>
+        <div class="karma-resolved" id="karmaResolved" hidden>
+            <p class="karma-resolved-title">KARMIC TOPOLOGY <span class="karma-resolved-last">RESOLVED</span></p>
+            <p class="karma-resolved-lead">The dust of fate has settled; the six-realm coordinates are now locked.</p>
+        </div>
     </div>
     <div id="subtitleLayer"></div>
     <div id="finalQuoteStage" class="final-quote-stage" hidden>
@@ -70,44 +74,53 @@
         </div>
     </div>
 
+    <div id="pathResolutionHud" class="path-res-hud" hidden>
+        <p class="path-res-anchor">At this bound moment, your consciousness is anchored in</p>
+        <div class="path-res-realm">
+            <img class="path-res-logo" alt="" hidden>
+            <span class="path-res-name">Naraka Realm</span>
+        </div>
+        <p class="path-res-note">System loaded dedicated rules based on your perceptual bias.</p>
+    </div>
     <div id="blockingLayer" class="layer" hidden data-mode=""></div>
 
-    <script src="config/assets.config.js"></script>
-    <script src="config/timing.config.js"></script>
-    <script src="config/paths.config.js?v=6"></script>
+    <script src="config/assets.config.js?v=3"></script>
+    <script src="config/timing.config.js?v=4"></script>
+    <script src="config/paths.config.js?v=7"></script>
     <script src="config/six-realms.config.js"></script>
     <script src="config/chart.config.js"></script>
     <script src="config/realm-assets.config.js?v=3"></script>
-    <script src="config/stages.config.js?v=18"></script>
+    <script src="config/stages.config.js?v=23"></script>
 
     <script src="karma/interaction-collector.js?v=3"></script>
     <script src="karma/six-paths-algorithm.js?v=5"></script>
     <script src="karma/market-ticker.js?v=2"></script>
-    <script src="karma/karma-progress.js?v=5"></script>
+    <script src="karma/karma-progress.js?v=6"></script>
 
     <script src="core/event-bus.js"></script>
     <script src="core/blocking-gate.js?v=2"></script>
     <script src="core/bg-video-controller.js"></script>
     <script src="core/subtitle-controller.js?v=2"></script>
 
-    <script src="effects/three-registry.js?v=3"></script>
-    <script src="effects/effect-registry.js?v=7"></script>
+    <script src="effects/three-registry.js?v=5"></script>
+    <script src="effects/effect-registry.js?v=8"></script>
 
-    <script src="house/house-model-stage.js?v=75"></script>
+    <script src="house/house-model-stage.js?v=107"></script>
     <script src="ui/crosshair-cursor.js"></script>
     <script src="ui/note-audio.js?v=4"></script>
-    <script src="ui/bgm-controller.js"></script>
-    <script src="ui/snowflake-cursor.js?v=2"></script>
-    <script src="ui/intro-controller.js"></script>
-    <script src="ui/sutra-controller.js?v=3"></script>
-    <script src="ui/final-quote-controller.js?v=2"></script>
+    <script src="ui/bgm-controller.js?v=3"></script>
+    <script src="ui/snowflake-cursor.js?v=5"></script>
+    <script src="ui/intro-controller.js?v=4"></script>
+    <script src="ui/sutra-controller.js?v=4"></script>
+    <script src="ui/final-quote-controller.js?v=3"></script>
     <script src="ui/blocking-ui.js"></script>
     <script src="ui/karma-pie-chart.js?v=7"></script>
     <script src="ui/karma-bar-chart.js?v=2"></script>
     <script src="ui/datav-border-box-1.js"></script>
     <script src="ui/karma-data-panel.js?v=13"></script>
 
-    <script src="core/stage-director.js?v=15"></script>
-    <script src="main.js?v=8"></script>
+    <script src="ui/path-resolution-hud.js?v=4"></script>
+    <script src="core/stage-director.js?v=18"></script>
+    <script src="main.js?v=11"></script>
 </body>
 </html>

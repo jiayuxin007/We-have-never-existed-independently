@@ -9,7 +9,7 @@
         {
             text: 'Yet all that exists here is but a transient consensus, struck by the protocol in a fleeting flash.',
             atMs: 0,
-            durationMs: 20000,
+            durationMs: 15000,
         },
     ];
 

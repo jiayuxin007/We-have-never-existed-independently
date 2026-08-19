@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>游动 — 房屋点云</title>
+    <meta name="color-scheme" content="dark">
+    <link rel="stylesheet" href="../styles/main.css?v=22">
+    <link rel="stylesheet" href="swim-preview.css?v=1">
+</head>
+<body class="swim-preview-page">
+    <video id="previewBgVideo" class="layer global-bg-video" autoplay muted playsinline loop>
+        <source src="../../assets/video/mixkit-flying-in-the-space-between-stars-and-nebulae-32973-hd-ready.mp4" type="video/mp4">
+    </video>
+
+    <div id="swimStage" class="swim-stage"></div>
+    <div id="subtitleLayer"></div>
+
+    <header class="swim-header">
+        <p class="swim-kicker">Preview only · 不接入正式流程</p>
+        <h1>游动</h1>
+        <p class="swim-note">
+            主流程同一座房屋、同一片星空。生：点在沿 Y 切开的半球里游，出球体就不画。老死：从游动位置向上卸下。
+        </p>
+        <nav class="swim-tabs" aria-label="播放模式">
+            <button type="button" id="modeLife" data-mode="life">只游动</button>
+            <button type="button" id="modeCycle" data-mode="cycle" class="is-active">生 → 老死</button>
+        </nav>
+    </header>
+
+    <aside class="swim-controls">
+        <button type="button" id="swimReplay">重播</button>
+        <p id="swimPhase" class="swim-phase">生</p>
+        <p id="swimStatus" class="swim-status">加载中…</p>
+    </aside>
+
+    <script src="../config/timing.config.js"></script>
+    <script src="../core/subtitle-controller.js?v=2"></script>
+    <script src="../effects/three-registry.js?v=3"></script>
+    <script src="swim-preview.js?v=6"></script>
+</body>
+</html>

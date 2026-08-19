@@ -30,10 +30,11 @@
     <header class="mingse-header">
         <p class="mingse-hint">老项目效果预览</p>
         <nav class="mingse-tabs" aria-label="因缘效果">
+            <button type="button" data-effect="edge-slice" class="is-active">溶边切片</button>
             <button type="button" data-effect="wuming">无明</button>
             <button type="button" data-effect="xing">行</button>
             <button type="button" data-effect="shi">识</button>
-            <button type="button" data-effect="mingse" class="is-active">名色</button>
+            <button type="button" data-effect="mingse">名色</button>
             <button type="button" data-effect="liuru">六入</button>
             <button type="button" data-effect="chu">触</button>
             <button type="button" data-effect="shou-dukha">苦受</button>
@@ -50,7 +51,7 @@
             <button type="button" data-effect="reform">重组</button>
         </nav>
         <p id="mingseNote" class="mingse-note">
-            点云缩小 + sin 拉扯 · 原时长 6s · 循环播放
+            贴图先溶边，点云再自下而上切片长出 · 16s 循环
         </p>
     </header>
 
@@ -60,6 +61,6 @@
     </aside>
 
     <script src="../effects/three-registry.js?v=3"></script>
-    <script src="mingse-preview.js?v=45"></script>
+    <script src="mingse-preview.js?v=61"></script>
 </body>
 </html>

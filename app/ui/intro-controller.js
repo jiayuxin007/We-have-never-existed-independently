@@ -5,14 +5,19 @@
     var INTRO_TEXT = 'We have never existed independently.';
     var REVEAL_DELAY_MS = T.introRevealDelayMs || 1000;
     var REVEAL_DURATION_S = T.introRevealDurationS || 2.5;
+    var SNOWFLAKE_DELAY_MS = T.introSnowflakeDelayMs || 2000;
+    var CLICK_LOCK_MS = T.introClickLockMs || 2000;
 
     var screenEl = null;
     var lineEl = null;
     var overlayEl = null;
     var snowflake = null;
     var clickResolver = null;
+    var clickArmed = false;
     var crosshair = null;
     var onCompleteCb = null;
+    var lockTimer = 0;
+    var snowflakeTimer = 0;
 
     function init(screen, line, overlay) {
         screenEl = screen;
@@ -42,20 +47,19 @@
 
     function startSnowflake() {
         if (snowflake) return;
+        if (overlayEl) overlayEl.hidden = false;
         if (typeof SnowflakeCursor !== 'undefined') {
             snowflake = new SnowflakeCursor('snowflake-cursor-container');
         }
     }
 
     function onOverlayClick(e) {
-        if (!snowflake || !clickResolver) return;
+        if (!clickArmed || !snowflake || !clickResolver) return;
         var canvas = document.getElementById('snowflakeCanvas');
         if (!canvas) return;
         var rect = canvas.getBoundingClientRect();
-        var scaleX = canvas.width / rect.width;
-        var scaleY = canvas.height / rect.height;
-        var x = (e.clientX - rect.left) * scaleX;
-        var y = (e.clientY - rect.top) * scaleY;
+        var x = e.clientX - rect.left;
+        var y = e.clientY - rect.top;
         if (snowflake.isPointNearSnowflake(x, y)) {
             if (global.BgmController) global.BgmController.startLoop();
             var resolve = clickResolver;
@@ -66,12 +70,25 @@
 
     /** 与 MyProject bootIntro() 一致：页面打开即启动 */
     function bootIntro() {
+        clickArmed = false;
         if (screenEl) {
             screenEl.hidden = false;
             screenEl.classList.remove('hidden');
         }
-        startSnowflake();
+        if (overlayEl) overlayEl.hidden = true;
+        requestAnimationFrame(function () {
+            if (snowflakeTimer) clearTimeout(snowflakeTimer);
+            snowflakeTimer = setTimeout(function () {
+                snowflakeTimer = 0;
+                startSnowflake();
+            }, SNOWFLAKE_DELAY_MS);
+        });
         setTimeout(runReveal, REVEAL_DELAY_MS);
+        if (lockTimer) clearTimeout(lockTimer);
+        lockTimer = setTimeout(function () {
+            clickArmed = true;
+            lockTimer = 0;
+        }, CLICK_LOCK_MS);
     }
 
     function enter() {
@@ -95,6 +112,15 @@
             screenEl.hidden = true;
         }
         clickResolver = null;
+        clickArmed = false;
+        if (lockTimer) {
+            clearTimeout(lockTimer);
+            lockTimer = 0;
+        }
+        if (snowflakeTimer) {
+            clearTimeout(snowflakeTimer);
+            snowflakeTimer = 0;
+        }
         if (crosshair) crosshair.show();
         if (onCompleteCb) onCompleteCb();
     }

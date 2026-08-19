@@ -20,6 +20,9 @@
     }
 
     function restartExperience() {
+        if (global.BgmController && global.BgmController.stop) {
+            global.BgmController.stop();
+        }
         global.location.href = global.location.pathname;
     }
 
