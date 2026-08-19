@@ -6,13 +6,50 @@
     var REVEAL_TAIL_MS = T.sutraRevealTailMs || 150;
     var PAUSE_AFTER_MS = T.sutraPauseAfterMs || 5000;
 
+    var FONT_WAIT_MS = 8000;
+    var CN_FONT_SAMPLE = '过去心不可得现在心不可得未来心不可得——金刚经';
+    var fontPromise = null;
+
     var stageEl = null;
     var autoTimer = null;
     var resolveEnter = null;
     var clickHandler = null;
 
+    function loadCnFont() {
+        if (!global.document || !global.document.fonts || !global.document.fonts.load) {
+            return Promise.resolve();
+        }
+        return global.document.fonts.load('16px FZCAOYTJW', CN_FONT_SAMPLE).then(function () {
+            return global.document.fonts.ready;
+        });
+    }
+
+    function waitForCnFont() {
+        if (!fontPromise) fontPromise = loadCnFont();
+        return new Promise(function (resolve) {
+            var settled = false;
+            var timer = setTimeout(function () {
+                if (settled) return;
+                settled = true;
+                resolve();
+            }, FONT_WAIT_MS);
+            fontPromise.then(function () {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                resolve();
+            }, function () {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                resolve();
+            });
+        });
+    }
+
     function init(el) {
         stageEl = el;
+        waitForCnFont();
     }
 
     function fillLineParallel(el, text, delaySec) {
@@ -88,19 +125,22 @@
     }
 
     function enter() {
-        if (stageEl) {
-            stageEl.hidden = false;
-            stageEl.classList.remove('hidden');
-        }
-        runReveal();
-        var totalMs = Math.ceil(REVEAL_DURATION_S * 1000) + REVEAL_TAIL_MS + PAUSE_AFTER_MS;
-        return new Promise(function (resolve) {
-            resolveEnter = resolve;
-            autoTimer = setTimeout(finishEnter, totalMs);
-            clickHandler = onStageClick;
+        return waitForCnFont().then(function () {
             if (stageEl) {
-                stageEl.addEventListener('click', clickHandler);
+                stageEl.hidden = false;
+                stageEl.classList.remove('hidden');
+                stageEl.classList.add('is-cn-font-ready');
             }
+            runReveal();
+            var totalMs = Math.ceil(REVEAL_DURATION_S * 1000) + REVEAL_TAIL_MS + PAUSE_AFTER_MS;
+            return new Promise(function (resolve) {
+                resolveEnter = resolve;
+                autoTimer = setTimeout(finishEnter, totalMs);
+                clickHandler = onStageClick;
+                if (stageEl) {
+                    stageEl.addEventListener('click', clickHandler);
+                }
+            });
         });
     }
 
@@ -108,6 +148,7 @@
         cleanupEnterListeners();
         resolveEnter = null;
         if (stageEl) {
+            stageEl.classList.remove('is-cn-font-ready');
             stageEl.classList.add('hidden');
             stageEl.hidden = true;
         }

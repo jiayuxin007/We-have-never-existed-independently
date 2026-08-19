@@ -17,7 +17,7 @@
     src: url('../../assets/fonts/FZCAOYTJW(1).TTF') format('truetype');
     font-weight: normal;
     font-style: normal;
-    font-display: swap;
+    font-display: block;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; cursor: none !important; }
@@ -441,6 +441,7 @@ body > .dg {
     right: clamp(92px, 23vw, 240px);
     max-width: min(38vw, 430px);
     text-align: right;
+    visibility: hidden;
 }
 
 .sutra-en-line, .sutra-en-attrib {
@@ -452,12 +453,15 @@ body > .dg {
 }
 
 .sutra-cn-line, .sutra-cn-attrib {
-    font-family: 'FZCAOYTJW', serif;
+    font-family: 'FZCAOYTJW';
     font-size: clamp(1.75rem, 5vw, 2.85rem);
     letter-spacing: 0.2em;
     color: rgba(255, 255, 255, 0.95);
     line-height: 1.65;
     margin: 0 0 0.4em 0;
+}
+.sutra-quote-stage.is-cn-font-ready .sutra-quote-cn-block {
+    visibility: visible;
 }
 
 .sutra-char {
