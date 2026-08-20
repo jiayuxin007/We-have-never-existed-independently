@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>六道 → 生 · 黑幕转场</title>
+    <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+    <meta name="color-scheme" content="dark">
+    <link rel="stylesheet" href="styles/main.css?v=45">
+    <link rel="stylesheet" href="iris-preview.css?v=4">
+</head>
+<body class="iris-preview-page">
+    <video id="globalBgVideo" class="layer global-bg-video" autoplay muted playsinline loop>
+        <source src="../assets/video/mixkit-flying-in-the-space-between-stars-and-nebulae-32973-hd-ready.mp4" type="video/mp4">
+    </video>
+
+    <div id="effectLayer" class="layer" hidden></div>
+    <div id="houseLayer" class="layer" hidden></div>
+    <div id="subtitleLayer"></div>
+    <div class="house-hint" id="houseHint" hidden>
+        <p class="house-hint-text"></p>
+    </div>
+    <div id="pathResolutionHud" class="path-res-hud" hidden>
+        <p class="path-res-anchor">At this bound moment, your consciousness is anchored in</p>
+        <div class="path-res-realm">
+            <img class="path-res-logo" alt="" hidden>
+            <span class="path-res-name">Naraka Realm</span>
+        </div>
+        <p class="path-res-note">System loaded dedicated rules based on your perceptual bias.</p>
+    </div>
+
+    <header class="iris-header">
+        <p class="iris-kicker">Preview only · 不接入正式流程</p>
+        <nav class="iris-tabs" aria-label="六道">
+            <button type="button" data-path="tian">天道</button>
+            <button type="button" data-path="ren" class="is-active">人道</button>
+            <button type="button" data-path="xiuluo">修罗</button>
+            <button type="button" data-path="chusheng">畜生</button>
+            <button type="button" data-path="egui">饿鬼</button>
+            <button type="button" data-path="diyu">地狱</button>
+        </nav>
+        <p id="irisStatus" class="iris-status">加载中…</p>
+    </header>
+
+    <script src="config/assets.config.js?v=3"></script>
+    <script src="config/timing.config.js?v=10"></script>
+    <script src="config/paths.config.js?v=8"></script>
+    <script src="config/six-realms.config.js"></script>
+    <script src="config/chart.config.js"></script>
+    <script src="config/realm-assets.config.js?v=3"></script>
+    <script src="config/stages.config.js?v=31"></script>
+
+    <script src="core/event-bus.js"></script>
+    <script src="core/bg-video-controller.js"></script>
+    <script src="core/subtitle-controller.js?v=2"></script>
+
+    <script src="effects/three-registry.js?v=5"></script>
+    <script src="effects/effect-registry.js?v=14"></script>
+    <script src="effects/ae-glow.js?v=2"></script>
+    <script src="effects/canvas-ae-glow.js?v=1"></script>
+    <script src="effects/dip-fade.js?v=1"></script>
+
+    <script src="house/house-model-stage.js?v=120"></script>
+    <script src="ui/crosshair-cursor.js"></script>
+    <script src="ui/karma-pie-chart.js?v=7"></script>
+    <script src="ui/path-resolution-hud.js?v=4"></script>
+    <script src="ui/house-hint.js?v=16"></script>
+    <script src="iris-preview.js?v=5"></script>
+</body>
+</html>

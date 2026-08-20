@@ -1,0 +1,63 @@
+.iris-preview-page .iris-header {
+    position: fixed;
+    top: 22px;
+    left: 24px;
+    z-index: 90;
+    max-width: min(560px, calc(100vw - 48px));
+    pointer-events: auto;
+}
+
+.iris-kicker {
+    margin: 0 0 8px;
+    font-family: 'Pixelate', monospace, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.42);
+}
+
+.iris-status {
+    margin: 8px 0 0;
+    font-family: 'SiteFont', serif;
+    font-size: 0.7rem;
+    line-height: 1.5;
+    letter-spacing: 0.03em;
+    color: rgba(126, 212, 222, 0.75);
+}
+
+.iris-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.iris-tabs button {
+    appearance: none;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(0, 0, 0, 0.45);
+    color: rgba(255, 255, 255, 0.7);
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-family: 'Pixelate', monospace, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+}
+
+.iris-tabs button.is-active {
+    border-color: rgba(126, 212, 222, 0.7);
+    background: rgba(58, 109, 117, 0.4);
+    color: #fff;
+}
+
+.iris-preview-page #subtitleLayer {
+    z-index: 30;
+}
+
+.iris-preview-page #globalBgVideo {
+    transition: none;
+}
+
+.iris-preview-page #houseLayer {
+    transition: none;
+}
