@@ -7,6 +7,7 @@
  * 取：一句闪三轮（2.4s × 3 = 7.2s），进度条出现即停
  * 人道：一句循环到六道结束
  * 畜生道：两句循环到六道结束
+ * 饿鬼道：一句循环到六道结束
  */
 (function (global) {
     'use strict';
@@ -33,6 +34,9 @@
     ];
     var REN_LINES = [
         'Move to weave a luminous trace; pass to let it fade to dust.',
+    ];
+    var EGUI_LINES = [
+        'Press \'R\' to reset the illusion; layering endless karmic weight.',
     ];
     var HOUSE_STAGES = {
         'house-expand': true,
@@ -90,6 +94,10 @@
         }
         if (key === 'six-paths-reveal' && pathId === 'chusheng') {
             start(CHUSHENG_LINES, 0);
+            return;
+        }
+        if (key === 'six-paths-reveal' && pathId === 'egui') {
+            start(EGUI_LINES, 0);
             return;
         }
         stop();
