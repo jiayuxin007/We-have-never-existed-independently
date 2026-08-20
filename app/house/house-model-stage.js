@@ -60,7 +60,7 @@
     var sweepMinY = -2;
     var sweepMaxY = 2;
     var holoPhase = 0;
-    var COL_HOUSE = 0x8B5CF6;
+    var COL_HOUSE = 0xB55328;
     var AI_FORM_S = 6.5;
     var AI_CAM_S = 5.5;
     var AI_CONTRACT_S = 1.8;
@@ -425,7 +425,7 @@
                 uPointSize: { value: 0.012 },
                 uPointAlpha: { value: 0 },
                 uGlow: { value: 1.0 },
-                uColor: { value: new THREE.Color(0x8B5CF6) },
+                uColor: { value: new THREE.Color(COL_HOUSE) },
                 uColorB: { value: new THREE.Vector3(1.0, 1.0, 1.0) },
                 uAccent: { value: 0 },
                 uBloom: { value: 0 },

@@ -114,6 +114,83 @@
             note: '网上：图例当按钮。和六道饼图图例同一语言，像选中下一次循环。',
             copy: 'Again',
         },
+        {
+            id: 'whisper',
+            label: '耳语',
+            hint: '几乎看不见，靠近才醒',
+            note: '网上：极低对比幽灵 CTA。像尘还没聚成形，光标靠近才承认它是一句。',
+            copy: 'Begin again',
+        },
+        {
+            id: 'ellipsis',
+            label: '省略',
+            hint: '三个点慢慢亮灭',
+            note: '网上：等待光标 / 未完待续。终句说完之后，像还有一口气没吐完。',
+            copy: 'Begin again',
+        },
+        {
+            id: 'echo',
+            label: '回声',
+            hint: '后面叠一层慢半拍的影',
+            note: '网上：电影字幕回声、双重曝光。对应「共享的尘」，同一句在稍远处再响一次。',
+            copy: 'Begin again',
+        },
+        {
+            id: 'rule',
+            label: '中线',
+            hint: '悬停时细线从中间长出',
+            note: '网上：诗集 / 画廊图注分割线。比下划线更静，像地平线被轻轻拉开。',
+            copy: 'Begin again',
+        },
+        {
+            id: 'stagger',
+            label: '逐字',
+            hint: '字母轮流亮一下',
+            note: '网上：kinetic type 逐字呼吸。和终句字体同构，不做弹跳，只改透明度。',
+            copy: 'Begin again',
+        },
+        {
+            id: 'comet',
+            label: '彗尾',
+            hint: '一点光从字下掠过',
+            note: '网上：开场彗星的缩小版。对应点彗星开始，结束时再让它从字下走一遍。',
+            copy: 'Begin again',
+        },
+        {
+            id: 'frame',
+            label: '细方框',
+            hint: '一条细线围住字',
+            note: '网上：画廊墙签、极简 kiosk。最干净的带框，字仍是终句字体。',
+            copy: 'Begin again',
+        },
+        {
+            id: 'double',
+            label: '双框',
+            hint: '内外两层细线',
+            note: '网上：证件框、博物馆铭牌。比单线更像一块可按的牌，仍很克制。',
+            copy: 'Begin again',
+        },
+        {
+            id: 'dashed',
+            label: '虚线框',
+            hint: '虚线围边，悬停变实线',
+            note: '网上：待确认选区、草稿框。像这一轮还没盖章，点下去才实线落地。',
+            copy: 'Begin again',
+        },
+        {
+            id: 'plate',
+            label: '夹层框',
+            hint: '外框里再嵌一圈',
+            note: '网上：仪器面板铭牌。和四角框不同，是完整矩形的双层嵌套。',
+            copy: 'Begin again',
+        },
+        {
+            id: 'glowframe',
+            label: '微光框',
+            hint: '细框带一点外溢光',
+            note: '网上：夜展柜玻璃边。框还在，光很弱，不做成霓虹广告。',
+            copy: 'Begin again',
+        },
     ];
 
     var tabsEl = document.getElementById('endingTabs');
@@ -215,6 +292,13 @@
         }).join('');
     }
 
+    function staggerLetters(text) {
+        return text.split('').map(function (ch, idx) {
+            if (ch === ' ') return '<span class="ch">&nbsp;</span>';
+            return '<span class="ch" style="animation-delay:' + (idx * 0.12) + 's">' + ch + '</span>';
+        }).join('');
+    }
+
     function innerHtml(v) {
         if (v.id === 'brackets') {
             return '<span class="c tl"></span><span class="c tr"></span><span class="c bl"></span><span class="c br"></span>' + v.copy;
@@ -245,6 +329,18 @@
         }
         if (v.id === 'tick') {
             return '<span class="swatch"></span>' + v.copy;
+        }
+        if (v.id === 'ellipsis') {
+            return v.copy + '<span class="dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span>';
+        }
+        if (v.id === 'echo') {
+            return '<span class="echo" aria-hidden="true">' + v.copy + '</span><span class="fg">' + v.copy + '</span>';
+        }
+        if (v.id === 'stagger') {
+            return staggerLetters(v.copy);
+        }
+        if (v.id === 'comet') {
+            return '<span class="label">' + v.copy + '</span><span class="tail" aria-hidden="true"></span>';
         }
         return v.copy;
     }

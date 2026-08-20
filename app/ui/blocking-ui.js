@@ -3,13 +3,40 @@
 
     var rootEl = null;
     var mode = null;
+    var hintEl = null;
+    var hintTimer = 0;
 
     function init(el) {
         rootEl = el;
+        hintEl = document.getElementById('singularityHint');
+    }
+
+    function showSingularityHint() {
+        if (!hintEl) hintEl = document.getElementById('singularityHint');
+        if (!hintEl) return;
+        hintEl.hidden = false;
+        hintEl.classList.remove('is-shown');
+        if (hintTimer) clearTimeout(hintTimer);
+        hintTimer = setTimeout(function () {
+            hintTimer = 0;
+            if (hintEl && !hintEl.hidden) hintEl.classList.add('is-shown');
+        }, 20);
+    }
+
+    function hideSingularityHint() {
+        if (hintTimer) {
+            clearTimeout(hintTimer);
+            hintTimer = 0;
+        }
+        if (!hintEl) hintEl = document.getElementById('singularityHint');
+        if (!hintEl) return;
+        hintEl.classList.remove('is-shown');
+        hintEl.hidden = true;
     }
 
     function clear() {
         mode = null;
+        hideSingularityHint();
         if (rootEl) {
             rootEl.innerHTML = '';
             rootEl.dataset.mode = '';
@@ -103,6 +130,7 @@
     global.AppEventBus.on('blocking:ready', function (payload) {
         if (payload && payload.mode === 'click-after') {
             showSonar();
+            showSingularityHint();
         }
         if (payload && payload.mode === 'sequence') {
             showSixCircles(6);

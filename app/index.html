@@ -7,7 +7,7 @@
     <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
     <meta name="color-scheme" content="dark">
     <link rel="preload" href="../assets/fonts/NITEMARE.TTF" as="font" type="font/ttf" crossorigin>
-    <link rel="stylesheet" href="styles/main.css?v=34">
+    <link rel="stylesheet" href="styles/main.css?v=39">
 </head>
 <body>
     <video id="globalBgVideo" class="layer global-bg-video" autoplay muted playsinline loop>
@@ -65,14 +65,21 @@
         </div>
     </div>
     <div id="subtitleLayer"></div>
+    <div class="singularity-hint" id="singularityHint" hidden>
+        <p class="singularity-hint-text">Touch the central singularity to descend further.</p>
+    </div>
     <div id="finalQuoteStage" class="final-quote-stage" hidden>
         <div class="final-quote-stack">
             <p class="final-quote-text">No one stands alone; we are the particles of dust, sampled and shared in the air we breathe.</p>
             <div class="final-quote-cta" id="finalQuoteCta">
-                <p class="final-quote-press">Press to continue</p>
                 <button type="button" class="final-restart-btn" id="finalRestartBtn" aria-label="Begin again">
-                    <span class="final-restart-again"><span class="final-restart-scan" aria-hidden="true"></span>Begin again</span>
+                    <span class="final-restart-corner tl" aria-hidden="true"></span>
+                    <span class="final-restart-corner tr" aria-hidden="true"></span>
+                    <span class="final-restart-corner bl" aria-hidden="true"></span>
+                    <span class="final-restart-corner br" aria-hidden="true"></span>
+                    <span class="final-restart-again">Begin again</span>
                 </button>
+                <p class="final-quote-press">Press to continue</p>
             </div>
         </div>
     </div>
@@ -106,9 +113,9 @@
     <script src="core/subtitle-controller.js?v=2"></script>
 
     <script src="effects/three-registry.js?v=5"></script>
-    <script src="effects/effect-registry.js?v=8"></script>
+    <script src="effects/effect-registry.js?v=10"></script>
 
-    <script src="house/house-model-stage.js?v=107"></script>
+    <script src="house/house-model-stage.js?v=109"></script>
     <script src="ui/crosshair-cursor.js"></script>
     <script src="ui/note-audio.js?v=4"></script>
     <script src="ui/bgm-controller.js?v=3"></script>
@@ -116,7 +123,7 @@
     <script src="ui/intro-controller.js?v=5"></script>
     <script src="ui/sutra-controller.js?v=4"></script>
     <script src="ui/final-quote-controller.js?v=3"></script>
-    <script src="ui/blocking-ui.js"></script>
+    <script src="ui/blocking-ui.js?v=2"></script>
     <script src="ui/karma-pie-chart.js?v=7"></script>
     <script src="ui/karma-bar-chart.js?v=2"></script>
     <script src="ui/datav-border-box-1.js"></script>

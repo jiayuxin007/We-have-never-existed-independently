@@ -5,7 +5,7 @@
         'repel-particles': {
             kind: 'stage',
             threeProfile: 'p5',
-            scripts: ['../reference/repel-particles/repel-particles-embed.js'],
+            scripts: ['../reference/repel-particles/repel-particles-embed.js?v=3'],
             mountName: 'mountRepelParticles',
             needsMouseMove: false,
         },
