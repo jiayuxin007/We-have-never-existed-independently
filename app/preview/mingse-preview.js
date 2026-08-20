@@ -148,7 +148,7 @@
         return currentMeta().durationS;
     }
 
-    var scene, camera, renderer, controls, modelRoot, points, pointsMaterial, targetMesh;
+    var scene, camera, renderer, aeGlow, controls, modelRoot, points, pointsMaterial, targetMesh;
     var meshBaseMaterial = null;
     var meshDissolveMaterial = null;
     var originalPositions = null;
@@ -468,6 +468,7 @@
         if (renderer.debug) renderer.debug.checkShaderErrors = true;
         renderer.setClearColor(0x000000, 0);
         renderer.setPixelRatio(Math.min(global.devicePixelRatio || 1, 2));
+        renderer.autoClear = false;
         if (renderer.outputEncoding !== undefined) renderer.outputEncoding = THREE.sRGBEncoding;
         if (renderer.toneMapping !== undefined) {
             renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -565,6 +566,10 @@
         controls.update();
 
         onResize();
+        if (global.AeGlow) {
+            aeGlow = new global.AeGlow(renderer);
+            aeGlow.resize();
+        }
         global.addEventListener('resize', onResize);
         global.addEventListener('pointermove', onMouseMove);
         resetPhase();
@@ -577,6 +582,7 @@
         camera.aspect = w / h;
         camera.updateProjectionMatrix();
         renderer.setSize(w, h);
+        if (aeGlow) aeGlow.resize();
     }
 
     function onMouseMove(e) {
@@ -1788,7 +1794,8 @@
         tickCurrent(delta);
         syncMouseRipple();
         if (controls) controls.update();
-        renderer.render(scene, camera);
+        if (aeGlow) aeGlow.render(scene, camera);
+        else renderer.render(scene, camera);
         rafId = global.requestAnimationFrame(animate);
     }
 

@@ -7,6 +7,7 @@
     var scene = null;
     var camera = null;
     var renderer = null;
+    var aeGlow = null;
     var controls = null;
     var modelRoot = null;
     var targetMesh = null;
@@ -60,7 +61,11 @@
     var sweepMinY = -2;
     var sweepMaxY = 2;
     var holoPhase = 0;
-    var COL_HOUSE = 0xB55328;
+    var COL_HOUSE = 0x3A6D75;
+    /** Ripple / slice rim / shockwave — warm orange vs teal house cloud */
+    var COL_FX_R = 1.0;
+    var COL_FX_G = 0.478;
+    var COL_FX_B = 0.157;
     var AI_FORM_S = 6.5;
     var AI_CAM_S = 5.5;
     var AI_CONTRACT_S = 1.8;
@@ -317,7 +322,7 @@
         }
         renderer.setClearColor(0x000000, 0);
         renderer.clear(true, true, true);
-        renderer.render(scene, camera);
+        renderHouse();
     }
 
     function warmupGpu() {
@@ -325,6 +330,7 @@
         syncMeshMaterialOpacity(1);
         try {
             if (typeof renderer.compile === 'function') renderer.compile(scene, camera);
+            renderer.setRenderTarget(null);
             renderer.render(scene, camera);
         } catch (err) {
             console.warn('[HouseModel] gpu warmup', err);
@@ -365,6 +371,7 @@
         if (renderer.debug) renderer.debug.checkShaderErrors = true;
         renderer.setClearColor(0x000000, 0);
         renderer.setPixelRatio(Math.min(global.devicePixelRatio || 1, 2));
+        renderer.autoClear = false;
         if (renderer.outputEncoding !== undefined) {
             renderer.outputEncoding = THREE.sRGBEncoding;
         }
@@ -395,6 +402,98 @@
         renderer.domElement.addEventListener('pointerdown', onLiuruPointerDown);
         renderer.domElement.addEventListener('pointerup', onLiuruPointerUp);
         onResize();
+        if (global.AeGlow) {
+            aeGlow = new global.AeGlow(renderer);
+            aeGlow.resize();
+        }
+    }
+
+    function meshOpacityOf(mat) {
+        if (!mat) return 0;
+        if (Array.isArray(mat)) {
+            var best = 0;
+            var i;
+            for (i = 0; i < mat.length; i++) {
+                if (mat[i] && mat[i].opacity > best) best = mat[i].opacity;
+            }
+            return best;
+        }
+        return mat.opacity || 0;
+    }
+
+    function meshIsShowing() {
+        if (targetMesh && targetMesh.visible && meshOpacityOf(targetMesh.material) > 0.04) return true;
+        var i;
+        for (i = 0; i < extraHouseMeshes.length; i++) {
+            var mesh = extraHouseMeshes[i];
+            if (mesh && mesh.visible && meshOpacityOf(mesh.material) > 0.04) return true;
+        }
+        return false;
+    }
+
+    function pointsAreShowing() {
+        if (!points || !points.visible || !pointsMaterial) return false;
+        var alpha = pointsMaterial.uniforms.uPointAlpha;
+        return !alpha || alpha.value > 0.02;
+    }
+
+    function hideHouseMeshes() {
+        var saved = [];
+        if (targetMesh) {
+            saved.push({ mesh: targetMesh, visible: targetMesh.visible });
+            targetMesh.visible = false;
+        }
+        var i;
+        for (i = 0; i < extraHouseMeshes.length; i++) {
+            var mesh = extraHouseMeshes[i];
+            if (!mesh) continue;
+            saved.push({ mesh: mesh, visible: mesh.visible });
+            mesh.visible = false;
+        }
+        return saved;
+    }
+
+    function restoreHouseMeshes(saved) {
+        if (!saved) return;
+        var i;
+        for (i = 0; i < saved.length; i++) {
+            saved[i].mesh.visible = saved[i].visible;
+        }
+    }
+
+    function aeGlowAllowed() {
+        if (suspended) return false;
+        if (mode === 'expand') return false;
+        if (mode === 'ring-flow') return false;
+        return pointsAreShowing();
+    }
+
+    function renderHouse() {
+        if (!renderer || !scene || !camera) return;
+        if (!aeGlow) {
+            renderer.setRenderTarget(null);
+            renderer.setClearColor(0x000000, 0);
+            renderer.clear();
+            renderer.render(scene, camera);
+            return;
+        }
+        var meshOn = meshIsShowing();
+        var cloudOn = pointsAreShowing();
+        var glowOn = aeGlowAllowed();
+        if (meshOn && cloudOn && glowOn && points) {
+            var ptsVis = points.visible;
+            points.visible = false;
+            aeGlow.enabled = false;
+            aeGlow.render(scene, camera);
+            points.visible = ptsVis;
+            var savedMeshes = hideHouseMeshes();
+            aeGlow.enabled = true;
+            aeGlow.render(scene, camera, { clearScreen: false });
+            restoreHouseMeshes(savedMeshes);
+            return;
+        }
+        aeGlow.enabled = glowOn && !meshOn;
+        aeGlow.render(scene, camera);
     }
 
     function setupFromGltf(gltf) {
@@ -471,7 +570,7 @@
                 uBloom: { value: 0 },
                 uSweepY: { value: -10 },
                 uSweepWidth: { value: 0.45 },
-                uSweepColor: { value: new THREE.Vector3(0.325, 0.388, 0.349) },
+                uSweepColor: { value: new THREE.Vector3(COL_FX_R, COL_FX_G, COL_FX_B) },
                 uSweepStrength: { value: 0 },
                 uSweepBoost: { value: 1 },
                 uMouse: { value: new THREE.Vector3(0, 0, 0) },
@@ -638,9 +737,9 @@
                 '  float a = 1.0 - smoothstep(0.2, 1.0, d);',
                 '  a *= vGlow * uPointAlpha;',
                 '  vec3 col = mix(uColor, uColorB, uAccent);',
-                '  col = mix(col, uSweepColor, vSweep * uSweepStrength);',
-                '  col = mix(col, vec3(1.0), vRipple * 0.68);',
-                '  col = mix(col, vec3(0.72, 0.94, 1.0), vHolo * 0.88);',
+                '  float fxAmt = max(vRipple, vSweep * max(uSweepStrength, 0.88));',
+                '  col = mix(col, uSweepColor, fxAmt * 0.94);',
+                '  col = mix(col, uSweepColor, vHolo * 0.9);',
                 '  a *= 1.0 + vHolo * 1.35;',
                 '  gl_FragColor = vec4(col, a);',
                 '}',
@@ -812,13 +911,13 @@
                     'if (uDissolve > 0.001 && n < uDissolve - ew * 0.55) discard;',
                     'float edge = 1.0 - clamp(abs(n - uDissolve) / ew, 0.0, 1.0);',
                     'edge *= step(0.001, uDissolve);',
-                    'diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.93, 0.89, 1.0), edge * 0.55);',
-                    'diffuseColor.rgb += vec3(0.55, 0.48, 0.95) * edge * 0.22;',
+                    'diffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.0, 0.48, 0.16), edge * 0.78);',
+                    'diffuseColor.rgb += vec3(1.0, 0.42, 0.1) * edge * 0.32;',
                 ].join('\n')
             );
         };
         mat.customProgramCacheKey = function () {
-            return 'mingse-hstripe-dissolve-v1';
+            return 'mingse-hstripe-dissolve-v2';
         };
     }
 
@@ -883,7 +982,7 @@
         if (u.uSweepStrength) u.uSweepStrength.value = 0;
         if (u.uSweepY) u.uSweepY.value = -10;
         if (u.uSweepBoost) u.uSweepBoost.value = 1;
-        if (u.uSweepColor) u.uSweepColor.value.set(0.325, 0.388, 0.349);
+        if (u.uSweepColor) u.uSweepColor.value.set(COL_FX_R, COL_FX_G, COL_FX_B);
     }
 
     function beginMingseDual() {
@@ -931,7 +1030,7 @@
             if (u.uSweepWidth) u.uSweepWidth.value = range.rim * 1.8;
             if (u.uSweepStrength) u.uSweepStrength.value = 0.55;
             if (u.uSweepBoost) u.uSweepBoost.value = 1.05;
-            if (u.uSweepColor) u.uSweepColor.value.set(0.96, 0.9, 1.0);
+            if (u.uSweepColor) u.uSweepColor.value.set(COL_FX_R, COL_FX_G, COL_FX_B);
         }
         if (modelRoot) modelRoot.scale.set(1, 1, 1);
     }
@@ -1219,6 +1318,7 @@
         camera.aspect = w / h;
         camera.updateProjectionMatrix();
         renderer.setSize(w, h);
+        if (aeGlow) aeGlow.resize();
     }
 
     function onMouseMove(e) {
@@ -2623,7 +2723,7 @@
         if (mode !== 'ai' && mode !== 'qu' && controls) {
             controls.update();
         }
-        renderer.render(scene, camera);
+        renderHouse();
     }
 
     function updateHoloScan(delta) {
@@ -2858,6 +2958,10 @@
 
     function tearDownRenderer() {
         stopLoop();
+        if (aeGlow) {
+            aeGlow.dispose();
+            aeGlow = null;
+        }
         if (renderer) {
             global.removeEventListener('resize', onResize);
             global.removeEventListener('pointermove', onMouseMove);

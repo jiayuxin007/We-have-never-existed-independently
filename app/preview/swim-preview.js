@@ -20,7 +20,7 @@
     var modeLifeBtn = document.getElementById('modeLife');
     var modeCycleBtn = document.getElementById('modeCycle');
 
-    var scene, camera, renderer, controls, clock;
+    var scene, camera, renderer, aeGlow, controls, clock;
     var modelRoot, points, pointsMaterial;
     var originalPositions = null;
     var velX, velY, velZ, speedArr;
@@ -512,7 +512,10 @@
         var dt = clock ? Math.min(0.033, clock.getDelta()) : 0.016;
         if (controls) controls.update();
         if (!points) {
-            if (renderer && scene && camera) renderer.render(scene, camera);
+            if (renderer && scene && camera) {
+                if (aeGlow) aeGlow.render(scene, camera);
+                else renderer.render(scene, camera);
+            }
             return;
         }
 
@@ -533,7 +536,8 @@
 
         if (phase === 'hold') {
             if (pointsMaterial) pointsMaterial.uniforms.uPointAlpha.value = 0;
-            renderer.render(scene, camera);
+            if (aeGlow) aeGlow.render(scene, camera);
+            else renderer.render(scene, camera);
             return;
         }
 
@@ -548,7 +552,8 @@
             tickLife(dt, 0.08, false);
             tickDeath(dt);
         }
-        renderer.render(scene, camera);
+        if (aeGlow) aeGlow.render(scene, camera);
+        else renderer.render(scene, camera);
     }
 
     function onResize() {
@@ -558,6 +563,7 @@
         camera.aspect = w / h;
         camera.updateProjectionMatrix();
         renderer.setSize(w, h);
+        if (aeGlow) aeGlow.resize();
     }
 
     function onMouseMove(e) {
@@ -589,6 +595,7 @@
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setClearColor(0x000000, 0);
         renderer.setPixelRatio(Math.min(global.devicePixelRatio || 1, 2));
+        renderer.autoClear = false;
         if (renderer.outputEncoding !== undefined) renderer.outputEncoding = THREE.sRGBEncoding;
         if (THREE.ACESFilmicToneMapping) {
             renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -693,6 +700,10 @@
         controls.update();
 
         onResize();
+        if (global.AeGlow) {
+            aeGlow = new global.AeGlow(renderer);
+            aeGlow.resize();
+        }
         global.addEventListener('resize', onResize);
         global.addEventListener('pointermove', onMouseMove);
         animate();

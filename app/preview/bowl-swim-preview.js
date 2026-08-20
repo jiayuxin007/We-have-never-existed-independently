@@ -14,7 +14,7 @@
     var stageEl = document.getElementById('bowlStage');
     var statusEl = document.getElementById('bowlStatus');
 
-    var scene, camera, renderer, controls, clock;
+    var scene, camera, renderer, aeGlow, controls, clock;
     var houseRoot, housePoints, houseOrig, houseScale = 1;
     var bowlRadius = 8;
     var bubbles, bubbleSeed;
@@ -369,6 +369,7 @@
         camera.aspect = w / h;
         camera.updateProjectionMatrix();
         renderer.setSize(w, h, false);
+        if (aeGlow) aeGlow.resize();
     }
 
     function animate() {
@@ -376,7 +377,8 @@
         tickHouse(t);
         tickBubbles(t);
         if (controls) controls.update();
-        renderer.render(scene, camera);
+        if (aeGlow) aeGlow.render(scene, camera);
+        else renderer.render(scene, camera);
         rafId = global.requestAnimationFrame(animate);
     }
 
@@ -386,6 +388,7 @@
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setClearColor(0x000000, 0);
         renderer.setPixelRatio(Math.min(global.devicePixelRatio || 1, 2));
+        renderer.autoClear = false;
         if (renderer.outputEncoding !== undefined) renderer.outputEncoding = THREE.sRGBEncoding;
         stageEl.appendChild(renderer.domElement);
 
@@ -413,6 +416,10 @@
         controls.update();
 
         onResize();
+        if (global.AeGlow) {
+            aeGlow = new global.AeGlow(renderer);
+            aeGlow.resize();
+        }
         global.addEventListener('resize', onResize);
         animate();
         setStatus('半球游水 · 拖动旋转');

@@ -141,23 +141,23 @@ const SIX_PATHS_ALGORITHM = (function () {
         const sRaw = isFinite(stab) ? stab : 0;
         const pRaw = isFinite(priceChange24h) ? priceChange24h : 0;
 
-        const vN = clamp01(vRaw / 5);          // 0~5% 波动 → 0~1
-        const tN = clamp01(tRaw / 0.02);       // Turn 0~0.02 → 0~1
-        const sN = clamp01((sRaw - 10) / 4);   // Stab 10~14 → 0~1
+        const vN = clamp01(vRaw / 18);         // 0~18% 日振幅 → 0~1（BTC 常在 2%~12%）
+        const tN = clamp01(tRaw / 0.06);       // Turn 0~0.06 → 0~1（BTC 常在 0.002~0.03）
+        const sN = clamp01((sRaw - 9) / 5);    // Stab 9~14 → 0~1
 
         // 2. 语义特征
         const chaos = 0.6 * vN + 0.4 * tN;           // 情绪/混乱度
         const consensus = sN;                        // 共识强度
         const illiquidity = 1 - tN;                  // 流动性枯竭度
-        const drop = Math.max(0, -pRaw / 10);        // 24h 跌幅映射到 0~正数
+        const drop = Math.max(0, -pRaw / 28);        // 28% 日跌才顶满，10% 约为 0.36
 
         // 3. 为每一道定义基础权重（>0），再用特征做偏置
-        let wTian      = 1 + 0.8 * consensus - 0.4 * chaos;          // 大盘 + 温和波动
-        let wRen       = 1 + 0.3 * (1 - Math.abs(chaos - 0.5));      // 中等混乱，人道
-        let wXiuluo    = 1 + 1.0 * chaos + 0.5 * tN;                 // 高混乱 + 高换手
-        let wChusheng  = 1 + 0.7 * (1 - consensus) * tN;             // 小盘 + 高换手
-        let wEgui      = 1 + 0.7 * illiquidity * (1 - consensus);    // 小盘 + 极低换手
-        let wDiyu      = 1 + 0.9 * chaos + 0.8 * drop;               // 高混乱 + 明显下跌
+        let wTian      = 1 + 0.8 * consensus - 0.35 * chaos;
+        let wRen       = 1.15 + 0.45 * (1 - Math.abs(chaos - 0.45));
+        let wXiuluo    = 1 + 0.55 * chaos + 0.25 * tN;
+        let wChusheng  = 1 + 0.7 * (1 - consensus) * tN;
+        let wEgui      = 1 + 0.7 * illiquidity * (1 - consensus);
+        let wDiyu      = 1 + 0.45 * chaos + 0.55 * drop;
 
         // 4. 加一点随机噪声，避免死板（±20% 范围）
         function jitter(w) {
@@ -241,14 +241,14 @@ const SIX_PATHS_ALGORITHM = (function () {
         const tRaw = isFinite(turn) ? turn : 0;
         const sRaw = isFinite(stab) ? stab : 0;
         const pRaw = isFinite(priceChange24h) ? priceChange24h : 0;
-        const vN = clamp01(vRaw / 5);
-        const tN = clamp01(tRaw / 0.02);
-        const sN = clamp01((sRaw - 10) / 4);
+        const vN = clamp01(vRaw / 18);
+        const tN = clamp01(tRaw / 0.06);
+        const sN = clamp01((sRaw - 9) / 5);
         return {
             chaos: 0.6 * vN + 0.4 * tN,
             consensus: sN,
             illiquidity: 1 - tN,
-            drop: Math.max(0, -pRaw / 10),
+            drop: Math.max(0, -pRaw / 28),
             vN,
             tN,
             sN,
@@ -514,17 +514,19 @@ const SIX_PATHS_ALGORITHM = (function () {
         const dragCount = summary.dragCount || 0;
         const dragDistance = summary.dragDistance || 0;
         const dragDuration = summary.dragDuration || 0;
+        const ritualClicks = 8;
+        const extraClicks = Math.max(0, clicks - ritualClicks);
         const activity = (
-            clicks * 2
+            extraClicks * 2
             + move / 500
             + scroll / 300
             + wheel / 400
             + dragDistance / 800
             + dragCount * 0.5
         );
-        const activityNorm = Math.min(1, activity / 8);
+        const activityNorm = Math.min(1, activity / 20);
         const patience = Math.min(1, dwell / 60);
-        const erratic = Math.min(1, (clicks / dwell) / 2);
+        const erratic = Math.min(1, (extraClicks / dwell) / 2.5);
         const dragNorm = Math.min(1, dragDistance / 1200 + dragCount / 6);
         const dragIntensity = Math.min(1, dragDuration / 20);
         const chaos = Math.min(1, (

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>House Glow — AE Glow 测试</title>
+    <meta name="color-scheme" content="dark">
+    <link rel="stylesheet" href="../styles/main.css?v=45">
+    <link rel="stylesheet" href="glow-preview.css?v=2">
+</head>
+<body class="glow-preview-page">
+    <video id="previewBgVideo" class="layer global-bg-video" autoplay muted playsinline loop>
+        <source src="../../assets/video/mixkit-flying-in-the-space-between-stars-and-nebulae-32973-hd-ready.mp4" type="video/mp4">
+    </video>
+
+    <div id="glowStage" class="glow-stage"></div>
+
+    <header class="glow-header">
+        <p class="glow-kicker">Preview only · 不接入正式流程</p>
+        <h1 class="glow-title">AE Glow</h1>
+        <p class="glow-note">勾选 Enable Glow 后点云周围应出现一圈光晕；关掉或按住空格应对比更明显。</p>
+        <p id="glowStatus" class="glow-status">加载中…</p>
+    </header>
+
+    <aside class="glow-panel" aria-label="Glow 参数">
+        <label class="glow-toggle">
+            <input type="checkbox" id="glowEnabled" checked>
+            <span>Enable Glow</span>
+        </label>
+
+        <label class="glow-row">
+            <span>Glow Threshold</span>
+            <input type="range" id="glowThreshold" min="0" max="100" value="10" step="1">
+            <b id="glowThresholdVal">10</b>
+        </label>
+        <label class="glow-row">
+            <span>Glow Softness</span>
+            <input type="range" id="glowSoftness" min="0" max="80" value="0" step="1">
+            <b id="glowSoftnessVal">0</b>
+        </label>
+        <label class="glow-row">
+            <span>Glow Radius</span>
+            <input type="range" id="glowRadius" min="2" max="80" value="26" step="1">
+            <b id="glowRadiusVal">26</b>
+        </label>
+        <label class="glow-row">
+            <span>Glow Intensity</span>
+            <input type="range" id="glowIntensity" min="0" max="80" value="7" step="1">
+            <b id="glowIntensityVal">0.7</b>
+        </label>
+
+        <label class="glow-toggle">
+            <input type="checkbox" id="glowOnly">
+            <span>仅看光晕</span>
+        </label>
+        <label class="glow-toggle">
+            <input type="checkbox" id="glowColorize">
+            <span>Glow Colors · A</span>
+        </label>
+        <label class="glow-row glow-row-color">
+            <span>Color A</span>
+            <input type="color" id="glowColorA" value="#7ED4DE">
+        </label>
+
+        <div class="glow-actions">
+            <button type="button" id="glowPresetAe">AE 默认手感</button>
+            <button type="button" id="glowPresetOff">关闭</button>
+        </div>
+        <p class="glow-hint">按住空格可暂时关闭 Glow 对比。</p>
+    </aside>
+
+    <script src="../effects/three-registry.js?v=5"></script>
+    <script src="../effects/ae-glow.js?v=1"></script>
+    <script src="glow-preview.js?v=3"></script>
+</body>
+</html>
