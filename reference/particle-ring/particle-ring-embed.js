@@ -12,6 +12,9 @@
  *
  * opts: {
  *   container: HTMLElement   必填，承载 canvas 的容器（建议全屏定位）
+ *   lineRgb: [r, g, b]       可选，粒子与圆环描边颜色；默认 [255, 255, 255]（白）。
+ *                            正式饿鬼道由 EffectRegistry 传入房屋点云色 #3A6D75；
+ *                            不传则保持白线（预览白线 tab 用）。
  * }
  * 返回: { dispose: function }
  *
@@ -35,6 +38,11 @@ window.mountParticleRing = function (opts) {
     opts.container.style.display = opts.container.style.display || 'flex';
     opts.container.style.alignItems = opts.container.style.alignItems || 'center';
     opts.container.style.justifyContent = opts.container.style.justifyContent || 'center';
+
+    var lineRgb = opts.lineRgb || [255, 255, 255];
+    var lr = lineRgb[0];
+    var lg = lineRgb[1];
+    var lb = lineRgb[2];
 
     var ASPECT = 16 / 9;
 
@@ -69,7 +77,7 @@ window.mountParticleRing = function (opts) {
             this.y = tempY;
             this.originX = tempX;
             this.originY = tempY;
-            this.color = p.color(255);
+            this.color = p.color(lr, lg, lb);
             var d = p.dist(tempX, tempY, 0, 0);
             this.dir = [tempX / d, tempY / d];
             this.life = true;
@@ -142,7 +150,7 @@ window.mountParticleRing = function (opts) {
             p.push();
             p.noFill();
             for (var i = 0; i <= 30; i++) {
-                p.stroke(255, p.map(i, 0, 30, 0, 100));
+                p.stroke(lr, lg, lb, p.map(i, 0, 30, 0, 100));
                 p.strokeWeight(3);
                 p.ellipse(p.random(-5, 5), p.random(-5, 5), r * 2, r * 2);
             }

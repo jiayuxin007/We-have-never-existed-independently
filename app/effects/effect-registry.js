@@ -49,9 +49,10 @@
         'particle-ring': {
             kind: 'path',
             threeProfile: 'p5',
-            scripts: ['../reference/particle-ring/particle-ring-embed.js'],
+            scripts: ['../reference/particle-ring/particle-ring-embed.js?v=2'],
             mountName: 'mountParticleRing',
             needsMouseMove: false,
+            wrapCanvasGlow: true,
         },
         /* 登记但不挂载于 13 段主流程 */
         'mouse-black-hole': {
@@ -153,6 +154,36 @@
         return scriptLoaded[src];
     }
 
+    function cloneMountOpts(opts) {
+        var out = {};
+        var key;
+        if (!opts) return out;
+        for (key in opts) {
+            if (Object.prototype.hasOwnProperty.call(opts, key)) out[key] = opts[key];
+        }
+        return out;
+    }
+
+    function houseLineRgb() {
+        var c = global.HouseModelStage && typeof global.HouseModelStage.getCloudColorRgb === 'function'
+            ? global.HouseModelStage.getCloudColorRgb()
+            : null;
+        if (c && typeof c.r === 'number') return [c.r, c.g, c.b];
+        if (Array.isArray(c) && c.length >= 3) return [c[0], c[1], c[2]];
+        return [0x3A, 0x6D, 0x75];
+    }
+
+    function wrapMountedCanvasGlow(container, inner) {
+        return global.ThreeRegistry.ensureR128().then(function () {
+            global.ThreeRegistry.useR128();
+            if (typeof global.wrapCanvasAeGlow !== 'function') return inner;
+            return global.wrapCanvasAeGlow({
+                container: container,
+                inner: inner,
+            });
+        });
+    }
+
     function getDef(effectId) {
         return EFFECT_DEFS[effectId] || null;
     }
@@ -196,7 +227,14 @@
                 throw new Error('Mount function missing: ' + def.mountName);
             }
             try {
-                return fn(opts);
+                var mountOpts = opts;
+                if (def.wrapCanvasGlow) {
+                    mountOpts = cloneMountOpts(opts);
+                    if (!mountOpts.lineRgb) mountOpts.lineRgb = houseLineRgb();
+                }
+                var handle = fn(mountOpts);
+                if (!def.wrapCanvasGlow) return handle;
+                return wrapMountedCanvasGlow(mountOpts.container, handle);
             } catch (err) {
                 releasePathProfile();
                 throw err;

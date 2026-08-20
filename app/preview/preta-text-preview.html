@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>饿鬼道台词可读性 — 四方案</title>
+    <meta name="color-scheme" content="dark">
+    <link rel="stylesheet" href="../styles/main.css?v=45">
+    <link rel="stylesheet" href="preta-text-preview.css?v=3">
+</head>
+<body class="preta-preview-page" data-fix="shadow">
+    <div id="ringStage" class="ring-stage"></div>
+    <div id="glowStage" class="glow-stage" hidden></div>
+    <div id="edgeVignette" class="edge-vignette" aria-hidden="true"></div>
+
+    <header class="preta-header">
+        <p class="preta-kicker">Preview only · 不接入正式流程</p>
+        <h1 class="preta-title">饿鬼道 · 白字压白线</h1>
+        <nav class="preta-tabs" aria-label="处理办法">
+            <button type="button" data-fix="shadow" class="is-active">文字投影</button>
+            <button type="button" data-fix="scrim">局部黑雾</button>
+            <button type="button" data-fix="recolor">特效改色</button>
+            <button type="button" data-fix="vignette">边缘暗角</button>
+        </nav>
+        <p id="pretaNote" class="preta-note">只动字：深色投影 + 极淡描边。特效仍是白线。</p>
+        <p id="pretaStatus" class="preta-status">加载中…</p>
+    </header>
+
+    <aside id="pathResolutionHud" class="path-res-hud is-shown">
+        <p class="path-res-anchor">At this bound moment, your consciousness is anchored in</p>
+        <div class="path-res-realm">
+            <img class="path-res-logo" src="../../assets/logo/preta.png" alt="Preta Realm" width="40" height="40">
+            <span class="path-res-name">Preta Realm</span>
+        </div>
+        <p class="path-res-note">System loaded dedicated rules based on your perceptual bias.</p>
+    </aside>
+
+    <p id="subtitleLayer" class="active">Yet all that exists here is but a transient consensus, struck by the protocol in a fleeting flash.</p>
+
+    <script src="../effects/three-registry.js?v=5"></script>
+    <script src="../effects/ae-glow.js?v=2"></script>
+    <script src="preta-text-preview.js?v=3"></script>
+</body>
+</html>

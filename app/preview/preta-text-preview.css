@@ -1,0 +1,194 @@
+.preta-preview-page {
+    overflow: hidden;
+    cursor: auto !important;
+    background: #000;
+}
+
+.preta-preview-page *,
+.preta-preview-page *::before,
+.preta-preview-page *::after {
+    cursor: auto !important;
+}
+
+.ring-stage {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    background: #000;
+}
+
+.ring-stage canvas {
+    display: block;
+}
+
+.glow-stage {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+}
+
+.glow-stage canvas {
+    display: block;
+}
+
+.glow-stage[hidden] {
+    display: none;
+}
+
+.preta-preview-page[data-fix="recolor"] .ring-stage canvas {
+    opacity: 0;
+}
+
+.edge-vignette {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    background:
+        radial-gradient(
+            ellipse 48% 44% at 50% 48%,
+            rgba(0, 0, 0, 0) 0%,
+            rgba(0, 0, 0, 0.06) 38%,
+            rgba(0, 0, 0, 0.42) 68%,
+            rgba(0, 0, 0, 0.78) 100%
+        ),
+        radial-gradient(ellipse 42% 38% at 10% 82%, rgba(0, 0, 0, 0.62) 0%, rgba(0, 0, 0, 0) 72%),
+        radial-gradient(ellipse 38% 32% at 92% 10%, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0) 70%);
+}
+
+.preta-preview-page[data-fix="vignette"] .edge-vignette {
+    display: block;
+}
+
+.preta-header {
+    position: fixed;
+    top: 22px;
+    left: 24px;
+    z-index: 40;
+    max-width: min(520px, calc(100vw - 380px));
+}
+
+.preta-kicker {
+    margin: 0 0 6px;
+    font-family: 'Pixelate', monospace, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.42);
+}
+
+.preta-title {
+    margin: 0 0 12px;
+    font-family: 'SiteFont', serif;
+    font-size: clamp(20px, 2.2vw, 30px);
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.preta-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 10px;
+}
+
+.preta-tabs button {
+    appearance: none;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(0, 0, 0, 0.4);
+    color: rgba(255, 255, 255, 0.62);
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-family: 'Pixelate', monospace, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+}
+
+.preta-tabs button.is-active {
+    border-color: rgba(58, 109, 117, 0.85);
+    background: rgba(58, 109, 117, 0.35);
+    color: #fff;
+}
+
+.preta-note,
+.preta-status {
+    margin: 0 0 6px;
+    font-family: 'SiteFont', serif;
+    font-size: 0.7rem;
+    line-height: 1.5;
+    letter-spacing: 0.03em;
+    color: rgba(255, 255, 255, 0.48);
+}
+
+.preta-status {
+    color: rgba(180, 140, 220, 0.75);
+}
+
+.preta-preview-page #pathResolutionHud {
+    opacity: 1;
+    transform: none;
+}
+
+/* 1 文字投影：只动字，特效仍是白线 */
+.preta-preview-page[data-fix="shadow"] #subtitleLayer,
+.preta-preview-page[data-fix="shadow"] .path-res-anchor,
+.preta-preview-page[data-fix="shadow"] .path-res-name,
+.preta-preview-page[data-fix="shadow"] .path-res-note {
+    text-shadow:
+        0 1px 0 rgba(0, 0, 0, 0.85),
+        0 2px 10px rgba(0, 0, 0, 0.95),
+        0 0 18px rgba(0, 0, 0, 0.9),
+        0 0 2px #000;
+    -webkit-text-stroke: 0.45px rgba(0, 0, 0, 0.55);
+}
+
+/* 2 局部黑雾：字后 scrim + backdrop blur */
+.preta-preview-page[data-fix="scrim"] #subtitleLayer,
+.preta-preview-page[data-fix="scrim"] #pathResolutionHud {
+    isolation: isolate;
+}
+
+.preta-preview-page[data-fix="scrim"] #subtitleLayer::before,
+.preta-preview-page[data-fix="scrim"] #pathResolutionHud::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    pointer-events: none;
+    background: radial-gradient(
+        ellipse at center,
+        rgba(0, 0, 0, 0.82) 0%,
+        rgba(0, 0, 0, 0.48) 52%,
+        rgba(0, 0, 0, 0) 78%
+    );
+    filter: blur(1px);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+}
+
+.preta-preview-page[data-fix="scrim"] #subtitleLayer::before {
+    inset: -40px -72px -44px -40px;
+}
+
+.preta-preview-page[data-fix="scrim"] #pathResolutionHud::before {
+    inset: -28px -44px -32px -52px;
+}
+
+.preta-preview-page[data-fix="scrim"] #subtitleLayer,
+.preta-preview-page[data-fix="scrim"] .path-res-anchor,
+.preta-preview-page[data-fix="scrim"] .path-res-name,
+.preta-preview-page[data-fix="scrim"] .path-res-note {
+    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
+}
+
+@media (max-width: 900px) {
+    .preta-header {
+        max-width: calc(100vw - 32px);
+    }
+}
