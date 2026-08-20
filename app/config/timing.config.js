@@ -28,5 +28,8 @@
         /** 进度条走完后，结算文案停留再切六道 */
         karmaBarFadeMs: 400,
         karmaResolvedHoldMs: 5000,
+
+        /** 识 / 名色操作提示：2.4s 一轮，每句两轮；四句 = 19.2s，对齐识+名色各 9.6s */
+        houseHintCycleMs: 2400,
     };
 })(typeof window !== 'undefined' ? window : this);

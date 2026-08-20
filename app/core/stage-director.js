@@ -330,6 +330,12 @@
 
         var hooks = {};
         if (stage.blocking.postClick === 'collapse-effect') {
+            hooks.hitTest = function (e) {
+                if (effectHandle && typeof effectHandle.containsPoint === 'function') {
+                    return effectHandle.containsPoint(e.clientX, e.clientY);
+                }
+                return true;
+            };
             hooks.postClick = function () {
                 global.BlockingUI.clear();
                 if (effectHandle && typeof effectHandle.collapse === 'function') {
@@ -404,7 +410,11 @@
             });
             console.info('[StageDirector] 受', currentVedanaKind, 'from', currentVedanaPathId);
         }
-        global.AppEventBus.emit('stage:enter', { stage: stage, index: index });
+        global.AppEventBus.emit('stage:enter', {
+            stage: stage,
+            index: index,
+            pathId: peekPathId(),
+        });
 
         setLayerVisibility(stage);
 

@@ -7,9 +7,10 @@
         });
     }
 
-    function waitClick() {
+    function waitClick(hitTest) {
         return new Promise(function (resolve) {
             function onClick(e) {
+                if (typeof hitTest === 'function' && !hitTest(e)) return;
                 document.removeEventListener('click', onClick, true);
                 resolve(e);
             }
@@ -54,7 +55,7 @@
             global.AppEventBus.emit('blocking:mode', { mode: 'click-after', afterMs: blocking.afterMs });
             return waitMs(blocking.afterMs).then(function () {
                 global.AppEventBus.emit('blocking:ready', { mode: 'click-after' });
-                return waitClick();
+                return waitClick(hooks.hitTest);
             }).then(function () {
                 if (typeof hooks.postClick === 'function') {
                     return hooks.postClick();

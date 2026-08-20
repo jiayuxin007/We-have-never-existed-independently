@@ -457,7 +457,8 @@ body > .dg {
 }
 
 .intro-comet-hint,
-.singularity-hint {
+.singularity-hint,
+.house-hint {
     left: 50%;
     bottom: 8vh;
     transform: translateX(-50%);
@@ -470,27 +471,40 @@ body > .dg {
     position: absolute;
     z-index: 4;
 }
-.singularity-hint {
+.singularity-hint,
+.house-hint {
     position: fixed;
     z-index: 55;
 }
 .intro-comet-hint.is-shown,
-.singularity-hint.is-shown {
+.singularity-hint.is-shown,
+.house-hint.is-shown {
     opacity: 1;
 }
 .intro-comet-hint-text,
-.singularity-hint-text {
+.singularity-hint-text,
+.house-hint-text {
     margin: 0;
     font-family: 'SiteFont', serif;
     font-size: 16px;
     letter-spacing: 0.12em;
-    color: rgba(255, 255, 255, 0.55);
+    color: #fff;
     text-align: center;
     white-space: nowrap;
 }
+.house-hint-text {
+    white-space: normal;
+    max-width: min(88vw, 44rem);
+    line-height: 1.55;
+}
 .intro-comet-hint.is-shown .intro-comet-hint-text,
-.singularity-hint.is-shown .singularity-hint-text {
-    animation: pressPulse 2.4s ease-in-out infinite;
+.singularity-hint.is-shown .singularity-hint-text,
+.house-hint.is-shown .house-hint-text {
+    animation: hintPulse 2.4s ease-in-out infinite;
+}
+@keyframes hintPulse {
+    0%, 100% { opacity: 0.8; }
+    50% { opacity: 0.2; }
 }
 
 /* --- Stage 1 sutra --- */

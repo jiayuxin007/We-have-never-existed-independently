@@ -45,9 +45,9 @@
         {
             id: 3,
             key: 'house-expand',
-            durationMs: 7000,
+            durationMs: 9600,
             blocking: null,
-            subtitles: [{ text: 'The Other. Mirroring the illusory self.', atMs: 0, durationMs: 7000, fadeDelayMs: 0 }],
+            subtitles: [{ text: 'The Other. Mirroring the illusory self.', atMs: 0, durationMs: 9600, fadeDelayMs: 0 }],
             layers: { bgVideo: true, effect: null, houseModel: 'expand', karmaBar: false },
             threeProfile: 'r128',
             collectInteraction: true,
@@ -55,9 +55,9 @@
         {
             id: 4,
             key: 'house-particleize',
-            durationMs: 8000,
+            durationMs: 9600,
             blocking: null,
-            subtitles: [{ text: 'Apparition. Entangling into flesh and blood.', atMs: 0, durationMs: 8000, fadeDelayMs: 0 }],
+            subtitles: [{ text: 'Apparition. Entangling into flesh and blood.', atMs: 0, durationMs: 9600, fadeDelayMs: 0 }],
             layers: { bgVideo: true, effect: null, houseModel: 'particleize', karmaBar: false },
             threeProfile: 'r128',
             collectInteraction: true,
@@ -76,12 +76,12 @@
         {
             id: 6,
             key: 'house-chu',
-            durationMs: 7500,
+            durationMs: 9600,
             blocking: null,
             subtitles: [{
                 text: 'Touch. Awakening the dormant pulse. You feel not the barrier, but the collective tremor of cosmic dust.',
                 atMs: 0,
-                durationMs: 7500,
+                durationMs: 9600,
                 fadeDelayMs: 0,
             }],
             layers: { bgVideo: true, effect: null, houseModel: 'chu', karmaBar: false },
@@ -91,12 +91,12 @@
         {
             id: 7,
             key: 'house-shou',
-            durationMs: 8000,
+            durationMs: 9600,
             blocking: null,
             subtitles: [{
                 text: 'Vedana. Resonance. The current is received as pleasure.',
                 atMs: 0,
-                durationMs: 8000,
+                durationMs: 9600,
                 fadeDelayMs: 0,
             }],
             layers: { bgVideo: true, effect: null, houseModel: 'shou', karmaBar: false },
@@ -121,12 +121,12 @@
         {
             id: 9,
             key: 'house-qu',
-            durationMs: 8000,
+            durationMs: 7200,
             blocking: null,
             subtitles: [{
                 text: 'Attachment. Solidifying the desolate instant.',
                 atMs: 0,
-                durationMs: 8000,
+                durationMs: 7200,
                 fadeDelayMs: 0,
             }],
             layers: { bgVideo: true, effect: null, houseModel: 'qu', karmaBar: false },

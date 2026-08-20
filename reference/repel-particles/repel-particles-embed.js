@@ -218,6 +218,14 @@ window.mountRepelParticles = function (opts) {
             canvas.removeEventListener('pointermove', onPointerMove);
             if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
         },
+        containsPoint: function (clientX, clientY) {
+            if (disposed || collapsing || radius_ <= 0) return false;
+            var rect = canvas.getBoundingClientRect();
+            var x = clientX - rect.left - w / 2;
+            var y = clientY - rect.top - h / 2;
+            var r = radius_ + 6;
+            return x * x + y * y <= r * r;
+        },
         collapse: function () {
             return beginCollapse();
         },

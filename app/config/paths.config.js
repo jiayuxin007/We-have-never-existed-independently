@@ -26,19 +26,19 @@
         dukha: [{
             text: 'Vedana. Overload. The system rejects the contact as pain.',
             atMs: 0,
-            durationMs: 8000,
+            durationMs: 9600,
             fadeDelayMs: 0,
         }],
         sukha: [{
             text: 'Vedana. Resonance. The current is received as pleasure.',
             atMs: 0,
-            durationMs: 8000,
+            durationMs: 9600,
             fadeDelayMs: 0,
         }],
         upeksha: [{
             text: 'Vedana. Equanimity. Data passes through without a mark.',
             atMs: 0,
-            durationMs: 8000,
+            durationMs: 9600,
             fadeDelayMs: 0,
         }],
     };

@@ -5,7 +5,7 @@
         'repel-particles': {
             kind: 'stage',
             threeProfile: 'p5',
-            scripts: ['../reference/repel-particles/repel-particles-embed.js?v=3'],
+            scripts: ['../reference/repel-particles/repel-particles-embed.js?v=4'],
             mountName: 'mountRepelParticles',
             needsMouseMove: false,
         },
@@ -33,7 +33,7 @@
         'hyper-mix': {
             kind: 'path',
             threeProfile: 'r74-hyper',
-            scripts: ['../reference/hyper-mix/js/hyper-mix-embed.js'],
+            scripts: ['../reference/hyper-mix/js/hyper-mix-embed.js?v=2'],
             mountName: 'mountHyperMix',
             needsMouseMove: false,
             beforeLoad: prepareHyperMixHost,

@@ -7,7 +7,7 @@
     <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
     <meta name="color-scheme" content="dark">
     <link rel="preload" href="../assets/fonts/NITEMARE.TTF" as="font" type="font/ttf" crossorigin>
-    <link rel="stylesheet" href="styles/main.css?v=39">
+    <link rel="stylesheet" href="styles/main.css?v=45">
 </head>
 <body>
     <video id="globalBgVideo" class="layer global-bg-video" autoplay muted playsinline loop>
@@ -68,6 +68,9 @@
     <div class="singularity-hint" id="singularityHint" hidden>
         <p class="singularity-hint-text">Touch the central singularity to descend further.</p>
     </div>
+    <div class="house-hint" id="houseHint" hidden>
+        <p class="house-hint-text"></p>
+    </div>
     <div id="finalQuoteStage" class="final-quote-stage" hidden>
         <div class="final-quote-stack">
             <p class="final-quote-text">No one stands alone; we are the particles of dust, sampled and shared in the air we breathe.</p>
@@ -95,12 +98,12 @@
     <div id="blockingLayer" class="layer" hidden data-mode=""></div>
 
     <script src="config/assets.config.js?v=3"></script>
-    <script src="config/timing.config.js?v=4"></script>
-    <script src="config/paths.config.js?v=7"></script>
+    <script src="config/timing.config.js?v=10"></script>
+    <script src="config/paths.config.js?v=8"></script>
     <script src="config/six-realms.config.js"></script>
     <script src="config/chart.config.js"></script>
     <script src="config/realm-assets.config.js?v=3"></script>
-    <script src="config/stages.config.js?v=23"></script>
+    <script src="config/stages.config.js?v=31"></script>
 
     <script src="karma/interaction-collector.js?v=3"></script>
     <script src="karma/six-paths-algorithm.js?v=5"></script>
@@ -108,12 +111,12 @@
     <script src="karma/karma-progress.js?v=6"></script>
 
     <script src="core/event-bus.js"></script>
-    <script src="core/blocking-gate.js?v=2"></script>
+    <script src="core/blocking-gate.js?v=3"></script>
     <script src="core/bg-video-controller.js"></script>
     <script src="core/subtitle-controller.js?v=2"></script>
 
     <script src="effects/three-registry.js?v=5"></script>
-    <script src="effects/effect-registry.js?v=10"></script>
+    <script src="effects/effect-registry.js?v=12"></script>
 
     <script src="house/house-model-stage.js?v=109"></script>
     <script src="ui/crosshair-cursor.js"></script>
@@ -130,7 +133,8 @@
     <script src="ui/karma-data-panel.js?v=13"></script>
 
     <script src="ui/path-resolution-hud.js?v=4"></script>
-    <script src="core/stage-director.js?v=18"></script>
-    <script src="main.js?v=11"></script>
+    <script src="ui/house-hint.js?v=15"></script>
+    <script src="core/stage-director.js?v=20"></script>
+    <script src="main.js?v=12"></script>
 </body>
 </html>

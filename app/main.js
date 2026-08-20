@@ -163,6 +163,7 @@
             global.FinalQuoteController.init(document.getElementById('finalQuoteStage'));
         }
         global.BlockingUI.init(document.getElementById('blockingLayer'));
+        if (global.HouseHint) global.HouseHint.init();
 
         wireNoteClicks();
 
