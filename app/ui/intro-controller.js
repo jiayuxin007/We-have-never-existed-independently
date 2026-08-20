@@ -11,6 +11,8 @@
     var screenEl = null;
     var lineEl = null;
     var overlayEl = null;
+    var hintEl = null;
+    var hintTimer = 0;
     var snowflake = null;
     var clickResolver = null;
     var clickArmed = false;
@@ -23,6 +25,7 @@
         screenEl = screen;
         lineEl = line;
         overlayEl = overlay;
+        hintEl = screen ? screen.querySelector('#introCometHint') : document.getElementById('introCometHint');
     }
 
     function setCrosshair(c) {
@@ -45,12 +48,34 @@
         }
     }
 
+    function showCometHint() {
+        if (!hintEl) return;
+        hintEl.hidden = false;
+        hintEl.classList.remove('is-shown');
+        if (hintTimer) clearTimeout(hintTimer);
+        hintTimer = setTimeout(function () {
+            hintTimer = 0;
+            if (hintEl && !hintEl.hidden) hintEl.classList.add('is-shown');
+        }, 20);
+    }
+
+    function hideCometHint() {
+        if (hintTimer) {
+            clearTimeout(hintTimer);
+            hintTimer = 0;
+        }
+        if (!hintEl) return;
+        hintEl.classList.remove('is-shown');
+        hintEl.hidden = true;
+    }
+
     function startSnowflake() {
         if (snowflake) return;
         if (overlayEl) overlayEl.hidden = false;
         if (typeof SnowflakeCursor !== 'undefined') {
             snowflake = new SnowflakeCursor('snowflake-cursor-container');
         }
+        showCometHint();
     }
 
     function onOverlayClick(e) {
@@ -76,6 +101,7 @@
             screenEl.classList.remove('hidden');
         }
         if (overlayEl) overlayEl.hidden = true;
+        hideCometHint();
         requestAnimationFrame(function () {
             if (snowflakeTimer) clearTimeout(snowflakeTimer);
             snowflakeTimer = setTimeout(function () {
@@ -103,6 +129,7 @@
 
     function exit() {
         if (overlayEl) overlayEl.removeEventListener('click', onOverlayClick);
+        hideCometHint();
         if (snowflake) {
             snowflake.destroy();
             snowflake = null;

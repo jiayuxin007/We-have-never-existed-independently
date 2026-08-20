@@ -464,6 +464,33 @@ body > .dg {
     cursor: none;
 }
 
+.intro-comet-hint {
+    position: absolute;
+    left: 50%;
+    bottom: 8vh;
+    transform: translateX(-50%);
+    z-index: 4;
+    margin: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.8s ease-out;
+}
+.intro-comet-hint.is-shown {
+    opacity: 1;
+}
+.intro-comet-hint-text {
+    margin: 0;
+    font-family: 'SiteFont', serif;
+    font-size: 16px;
+    letter-spacing: 0.12em;
+    color: rgba(255, 255, 255, 0.55);
+    text-align: center;
+    white-space: nowrap;
+}
+.intro-comet-hint.is-shown .intro-comet-hint-text {
+    animation: pressPulse 2.4s ease-in-out infinite;
+}
+
 /* --- Stage 1 sutra --- */
 .sutra-quote-stage {
     z-index: 5;

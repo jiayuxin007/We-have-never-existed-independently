@@ -15,8 +15,8 @@ class SnowflakeCursor {
 
         this.x = 0;
         this.y = 0;
-        this.vx = 1.35;
-        this.vy = 1.0;
+        this.vx = 1.01;
+        this.vy = 0.75;
         this.frameCount = 0;
 
         this.trail = [];
@@ -98,7 +98,7 @@ class SnowflakeCursor {
     update() {
         this.frameCount++;
 
-        const wave = Math.sin(this.frameCount * 0.025) * 0.5;
+        const wave = Math.sin(this.frameCount * 0.025) * 0.375;
         this.x += this.vx + wave;
         this.y += this.vy;
 
