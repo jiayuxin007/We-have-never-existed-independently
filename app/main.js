@@ -110,6 +110,9 @@
     }
 
     function scheduleIntroLoading(dbg, startIndex) {
+        if (global.HouseModelStage && global.HouseModelStage.prefetchModel) {
+            global.HouseModelStage.prefetchModel();
+        }
         afterMs(400).then(function () {
             prefetchNextStageAssets();
         });
@@ -121,6 +124,9 @@
 
     function boot() {
         var dbg = parseDebugParams();
+        if (global.HouseModelStage && global.HouseModelStage.prefetchModel) {
+            global.HouseModelStage.prefetchModel();
+        }
         if (dbg.market === 'mock') {
             global.__MARKET_PROVIDER__ = 'mock';
         }

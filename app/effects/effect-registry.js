@@ -26,7 +26,7 @@
         'constraint-particles': {
             kind: 'path',
             threeProfile: 'r74-spirit',
-            scripts: ['../reference/constraint-particles/js/constraint-particles-embed.js?v=2'],
+            scripts: ['../reference/constraint-particles/js/constraint-particles-embed.js?v=3'],
             mountName: 'mountConstraintParticles',
             needsMouseMove: false,
         },

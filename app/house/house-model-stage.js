@@ -173,40 +173,72 @@
     function buildModelUrls() {
         var cfg = global.ASSETS_CONFIG && global.ASSETS_CONFIG.model;
         var rel = (cfg && cfg.house) ? cfg.house : '../assets/models/less_25mb.glb';
-        var href = global.location.href;
-        return [
-            new URL(rel, href).toString(),
-            new URL('/assets/models/less_25mb.glb', href).toString(),
-            new URL('./assets/models/less_25mb.glb', href).toString(),
-            rel,
-            '../assets/models/less_25mb.glb',
-            'assets/models/less_25mb.glb',
-        ];
+        var absolute = '';
+        try {
+            absolute = new URL(rel, global.location.href).toString();
+        } catch (err) {}
+        var urls = [];
+        if (absolute) urls.push(absolute);
+        if (rel && urls.indexOf(rel) < 0) urls.push(rel);
+        return urls;
     }
 
-    var HOUSE_MODEL_LOADER_VERSION = 26;
+    var HOUSE_MODEL_LOADER_VERSION = 27;
     var gpuWarmed = false;
     var TEXTURE_MAX = 4096;
     var prefetchPromise = null;
+    var prefetchedBuffer = null;
+    var prefetchedUrl = '';
 
     function prefetchModel() {
+        if (prefetchedBuffer) return Promise.resolve(prefetchedBuffer);
         if (prefetchPromise) return prefetchPromise;
-        var urls = buildModelUrls();
-        var url = urls && urls[0];
-        if (!url || !global.document) {
+        var url = (buildModelUrls()[0] || '');
+        if (!url) {
             prefetchPromise = Promise.resolve();
             return prefetchPromise;
         }
-        var link = global.document.createElement('link');
-        link.rel = 'prefetch';
-        link.as = 'fetch';
-        link.href = url;
-        global.document.head.appendChild(link);
-        prefetchPromise = Promise.resolve();
+        if (global.document && !global.document.querySelector('link[rel="preload"][href="' + url + '"]')) {
+            var link = global.document.createElement('link');
+            link.rel = 'preload';
+            link.as = 'fetch';
+            link.href = url;
+            global.document.head.appendChild(link);
+        }
+        prefetchPromise = fetch(url).then(function (res) {
+            if (!res.ok) throw new Error('House model HTTP ' + res.status);
+            return res.arrayBuffer();
+        }).then(function (buf) {
+            prefetchedBuffer = buf;
+            prefetchedUrl = url;
+            console.info('[HouseModel] prefetched', (buf.byteLength / 1048576).toFixed(1) + 'MB');
+            return buf;
+        }).catch(function (err) {
+            prefetchPromise = null;
+            console.warn('[HouseModel] prefetch failed', err);
+        });
         return prefetchPromise;
     }
 
-    function loadModelWithFallback(urls) {
+    function parseGltfBuffer(buffer, url) {
+        return new Promise(function (resolve, reject) {
+            if (typeof THREE === 'undefined' || typeof THREE.GLTFLoader !== 'function') {
+                reject(new Error('THREE.GLTFLoader not available'));
+                return;
+            }
+            var loader = new THREE.GLTFLoader();
+            if (typeof loader.setCrossOrigin === 'function') loader.setCrossOrigin('anonymous');
+            var path = String(url || '').replace(/[^/]+$/, '');
+            loader.parse(buffer, path, function (gltf) {
+                console.info('[HouseModel] v' + HOUSE_MODEL_LOADER_VERSION + ' parse', url);
+                resolve(gltf);
+            }, function (err) {
+                reject(err || new Error('GLTF parse failed'));
+            });
+        });
+    }
+
+    function loadFromNetwork(urls) {
         return new Promise(function (resolve, reject) {
             if (typeof THREE === 'undefined' || typeof THREE.GLTFLoader !== 'function') {
                 reject(new Error('THREE.GLTFLoader not available'));
@@ -232,6 +264,14 @@
                 });
             }
             tryNext();
+        });
+    }
+
+    function loadModelWithFallback(urls) {
+        if (prefetchedBuffer) return parseGltfBuffer(prefetchedBuffer, prefetchedUrl || urls[0]);
+        return Promise.resolve(prefetchPromise || prefetchModel()).then(function () {
+            if (prefetchedBuffer) return parseGltfBuffer(prefetchedBuffer, prefetchedUrl || urls[0]);
+            return loadFromNetwork(urls);
         });
     }
 
@@ -1134,7 +1174,7 @@
         if (typeof THREE === 'undefined') {
             return Promise.reject(new Error('THREE not available — use HTTP server from project root'));
         }
-        showLoading();
+        if (!containerEl.hidden) showLoading();
         loadPromise = loadModelWithFallback(buildModelUrls()).then(function (gltf) {
             return yieldToPaint().then(function () {
                 ensureRenderer();
@@ -2723,6 +2763,7 @@
 
         containerEl.dataset.houseMode = stageKey || '';
         if (!seamlessFade) coverHouseLayer();
+        if (!loaded) showLoading();
         suspended = false;
 
         return ensureLoaded().then(function () {
@@ -2854,6 +2895,11 @@
         mode = null;
         modeElapsed = 0;
         if (!opts.keepVisible) applyAiLift(0);
+        if (controls) {
+            controls.enabled = false;
+            controls.enableZoom = false;
+            controls.enableRotate = false;
+        }
         if (containerEl) {
             if (!opts.keepVisible) {
                 containerEl.hidden = true;
