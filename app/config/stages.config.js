@@ -94,7 +94,7 @@
             durationMs: 9600,
             blocking: null,
             subtitles: [{
-                text: 'Vedana. Resonance. The current is received as pleasure.',
+                text: 'Resonance. The current is received as pleasure.',
                 atMs: 0,
                 durationMs: 9600,
                 fadeDelayMs: 0,
@@ -109,7 +109,7 @@
             durationMs: 8000,
             blocking: null,
             subtitles: [{
-                text: 'Longing to stitch the fractured projections, as if to catch a never-offline twilight alive, within the delayed cache.',
+                text: 'To stitch fractured projections, as if to catch a never-offline twilight alive in cache-delay.',
                 atMs: 0,
                 durationMs: 8000,
                 fadeDelayMs: 0,
