@@ -13,6 +13,12 @@
     var warmPath = { effectId: null, handle: null, promise: null };
 
     var PATH_FADE_MS = 700;
+    var DIP_OUT_MS = 3000;
+    var DIP_IN_MS = 3000;
+    var DIP_HOLD_MS = 80;
+
+    var dipFade = null;
+    var dipPendingReveal = false;
 
     var dom = {};
 
@@ -73,6 +79,39 @@
             return def ? def.threeProfile : 'r128';
         }
         return stage.threeProfile;
+    }
+
+    function waitMs(ms) {
+        return new Promise(function (resolve) {
+            setTimeout(resolve, ms);
+        });
+    }
+
+    function ensureDipFade() {
+        if (dipFade) return dipFade;
+        if (typeof global.createDipFade === 'function') {
+            dipFade = global.createDipFade();
+        }
+        return dipFade;
+    }
+
+    function fadePathToBlackIfBirth(index) {
+        var next = getStage(index + 1);
+        if (!next || next.key !== 'woven-ring') return Promise.resolve();
+        var dip = ensureDipFade();
+        if (!dip) return Promise.resolve();
+        dipPendingReveal = true;
+        return dip.fadeToBlack(DIP_OUT_MS);
+    }
+
+    function revealFromBlackIfNeeded() {
+        if (!dipPendingReveal) return Promise.resolve();
+        dipPendingReveal = false;
+        var dip = ensureDipFade();
+        if (!dip) return Promise.resolve();
+        return waitMs(DIP_HOLD_MS).then(function () {
+            return dip.fadeFromBlack(DIP_IN_MS);
+        });
     }
 
     function assignedPathEffectId() {
@@ -206,6 +245,8 @@
             if (global.PathResolutionHud) global.PathResolutionHud.show(pathId);
             global.SubtitleController.play(resolveSubtitles(stage));
             return runStageBody(stage);
+        }).then(function () {
+            return fadePathToBlackIfBirth(index);
         }).then(function () {
             global.AppEventBus.emit('stage:complete', { stage: stage, index: index });
             exitStage(stage, getStage(index + 1));
@@ -418,6 +459,8 @@
 
         setLayerVisibility(stage);
 
+        var holdBirthSub = dipPendingReveal && !(stage.layers && stage.layers.effect);
+
         if (stage.layers && stage.layers.effect === 'assigned-path') {
             return enterAssignedPathStage(stage, index);
         }
@@ -425,7 +468,7 @@
         var special = runSpecialStage(stage);
         if (!special) {
             /* 有特效的阶段：等 mount 完成后再播字幕，atMs 相对「效果就绪」 */
-            if (!resolveEffectId(stage)) {
+            if (!resolveEffectId(stage) && !holdBirthSub) {
                 global.SubtitleController.play(resolveSubtitles(stage));
             }
         }
@@ -443,7 +486,10 @@
             return mountStageEffect(stage);
         }).then(function () {
             if (special) return Promise.resolve();
-            if (resolveEffectId(stage)) {
+            return revealFromBlackIfNeeded();
+        }).then(function () {
+            if (special) return Promise.resolve();
+            if (resolveEffectId(stage) || holdBirthSub) {
                 global.SubtitleController.play(resolveSubtitles(stage));
             }
             return runStageBody(stage);
