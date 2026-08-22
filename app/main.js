@@ -23,7 +23,7 @@
             debug: params.get('debug') === '1',
             stage: params.has('stage') ? parseInt(params.get('stage'), 10) : null,
             market: params.get('market') || null,
-            panel: params.get('panel') === '1',
+            panel: params.get('panel'),
             chart: params.get('chart') || null,
             vedana: params.get('vedana') || null,
             path: normalizePathId(params.get('path')),
